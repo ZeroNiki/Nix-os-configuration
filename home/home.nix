@@ -99,11 +99,12 @@
     # On the fresh machine ~/.config/niri/config.kdl won't exist yet (the real
     # dotfiles come later via stow, see the note at the bottom of this file),
     # so Niri writes its own default config, whose built-in binds expect
-    # `alacritty` (Mod+Return) and `fuzzel` (Mod+D) -- neither of which is
+    # `alacritty` (Mod+T) and `fuzzel` (Mod+D) -- neither of which is
     # otherwise installed here (ghostty/rofi are the chosen terminal/launcher,
     # wired up in home/desktop/noctalia.nix, but only once that config.kdl is
     # in place). Keep these two around so the very first login still has a
-    # working terminal and launcher before the stow step happens.
+    # working terminal and launcher before the stow step happens. Mod+Shift+/
+    # shows the full default keybind cheat sheet; Mod+Shift+E exits the session.
     alacritty
     fuzzel
   ];

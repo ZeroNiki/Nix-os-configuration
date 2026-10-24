@@ -52,19 +52,6 @@
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1"; # Electron/Chromium apps (discord, obsidian, ...) use native Wayland
     MOZ_ENABLE_WAYLAND = "1"; # Firefox
-
-    # NVIDIA/wlroots hardware-cursor corruption workaround. This is a PRIME
-    # *offload* laptop (Intel renders, NVIDIA only kicks in via
-    # `nvidia-offload`), so niri's own compositing still runs entirely on the
-    # Intel iGPU -- deliberately NOT setting GBM_BACKEND/__GLX_VENDOR_LIBRARY_NAME
-    # here, that would force the dGPU as primary renderer and is the classic
-    # cause of the black-screen-on-TTY-start niri's own NVIDIA wiki page warns
-    # about. WLR_NO_HARDWARE_CURSORS only falls back to software cursor
-    # rendering, which stays relevant any time the NVIDIA cursor plane is in
-    # the picture (e.g. the HDMI output in niri's config.kdl ending up on a
-    # path that touches the dGPU) -- cheap enough to leave on by default; drop
-    # it if the cursor looks fine and you'd rather have the hardware plane.
-    WLR_NO_HARDWARE_CURSORS = "1";
   };
 
   # --- NVIDIA VRAM heap-reuse workaround for niri specifically ---

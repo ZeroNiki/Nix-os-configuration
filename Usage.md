@@ -312,14 +312,18 @@ hardware-detected, not something `system-audit.txt` could tell you in advance, s
 > `hosts/system/hardware-configuration.nix` with what `/tmp/hw.nix` shows, by hand, before
 > installing.
 
-> **`stateVersion`:** `/tmp/hw.nix` from `nixos-generate-config` won't include a
-> `system.stateVersion` line (that only shows up in the full `configuration.nix` it would
-> otherwise generate), but it's worth a deliberate decision rather than leaving the repo's
-> `"24.11"` on autopilot: pick the value matching the actual installer ISO/channel you're
-> booting from, and set it in **both** `system.stateVersion`
-> (`hosts/system/configuration.nix`) and `home.stateVersion` (`home/home.nix`) together, in
-> their own follow-up commit — not mixed into this install's commit, and not silently left
-> stale either.
+> **`stateVersion`:** don't touch it during install — the repo's `"24.11"` is safe on a fresh
+> system. If you want to bump it later, do that on the already-running system, in both
+> `system.stateVersion` (`hosts/system/configuration.nix`) and `home.stateVersion`
+> (`home/home.nix`) together, in one commit.
+
+> **What to expect from the `diff` above (Option A):** a difference in `fileSystems` (UUIDs in
+> `/tmp/hw.nix` vs. labels in the repo) is expected — ignore it. The only thing worth reading is
+> `boot.initrd.availableKernelModules`: if `/tmp/hw.nix` lists modules the repo doesn't have
+> (e.g. `thunderbolt`, `rtsx_pci_sdmmc`), add them to `hosts/system/hardware-configuration.nix`.
+> If you edit that file directly on the installer at `/mnt/etc/nixos`, it's already a tracked
+> file in the clone, so the flake picks up the change with no `git add` needed — commit and push
+> can wait until after the first boot.
 
 ### 1.5 Install
 
