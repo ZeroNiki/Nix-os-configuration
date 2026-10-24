@@ -53,6 +53,42 @@ If `nix flake check` ever fails again after you edit something, the error trace 
 nixpkgs option or package on whatever nixpkgs revision `nix flake update` pulled in — fix the
 name, don't fight the error.
 
+### 0.1 Pre-flight checklist (read this before you boot the installer)
+
+Last reviewed 2026-10-24: `nix flake check` passes clean and the VM/toplevel builds above
+already succeeded on this machine. The code itself is not the risk — these five things are,
+because they depend on manual steps during the install, not on anything `nix flake check` can
+catch:
+
+1. **Back up `/home`.** Partitioning in section 1.2 is destructive. Do this first, no exceptions.
+2. **`hardware-configuration.nix`'s `fileSystems` now mounts by label** (`by-label/nixos` +
+   `subvol=@`/`@home`/`@nix`/`@snapshots`, `by-label/EFI`), not by UUID — it's already correct
+   as long as you format the disk in section 1.2 with those exact labels (Option A). What still
+   needs checking against the real hardware after partitioning is
+   `boot.initrd.availableKernelModules` (section 1.3's `diff` step) — that one genuinely is
+   hardware-detected and can't be pre-filled.
+3. **No user password is set on purpose.** Don't reboot after `nixos-install` without running
+   `nixos-enter --root /mnt -c 'passwd nellaror'` first (section 1.5) — otherwise you can't log
+   in on first boot.
+4. **NVIDIA PRIME + Niri on Wayland is the most likely first-boot failure point.** The config
+   (open driver, modesetting, prime offload with both busIds) is sound, but hybrid-graphics +
+   Wayland is where a black screen / failed-to-start-session is most likely to happen on a
+   *first* boot. Unlike a later `nixos-rebuild switch`, there is no previous generation to roll
+   back to yet — but there IS a fallback now: the systemd-boot menu has a second entry,
+   **`intel-only`** (`modules/hardware/nvidia.nix`), that blacklists every nvidia kernel module
+   and runs the session on the Intel iGPU alone. If the screen goes black on the normal entry,
+   reboot, pick `intel-only` from the boot menu (arrow keys, no USB needed), and debug from
+   there — or just drop to a TTY with **Ctrl+Alt+F2** instead of rebooting at all. Only fall
+   back to the installer USB + `nixos-enter --root /mnt` if neither of those gets you a shell.
+5. **Noctalia and the real dotfiles aren't in yet.** `home/desktop/noctalia.nix` currently runs
+   waybar/rofi/mako as a stand-in (Noctalia itself isn't packaged yet — see the comment at the
+   top of that file), and Niri's actual keybindings/layout live in the stow-managed
+   `~/.dotfiles` repo, which won't exist on the fresh machine until you copy/clone it over. Niri
+   will still start with sane defaults either way — this just means the "final" look/bindings
+   aren't there until you do that by hand.
+
+None of this blocks the install — it's just the list of things to not forget mid-process.
+
 ---
 
 ## 1. Installation: Arch → NixOS
@@ -96,6 +132,12 @@ directly over the network instead of you carrying it in on a USB stick. Worth do
 the same "config lives in git, not on whatever machine happens to have it" idea the rest of
 this repo already follows, and it means any future reinstall is just "clone + install" from
 any machine, not "remember which USB stick has the current version."
+
+The `/tmp/nix-os` clone below is just a convenient place to **read/review** the repo before
+partitioning (e.g. double-check `hosts/system/hardware-configuration.nix` against what you're
+about to format). It is not what actually gets installed — step 1.3 does its own, separate
+clone straight into `/mnt/etc/nixos` once the disk is partitioned and mounted, which is the one
+that matters; reuse the same auth variant from here if the repo is private.
 
 ```bash
 # From your CURRENT machine (Arch), before rebooting into the installer —
@@ -181,6 +223,14 @@ mount -o subvol=@snapshots,compress=zstd /dev/nvme0n1p2 /mnt/.snapshots
 mount /dev/nvme0n1p1 /mnt/boot/efi
 ```
 
+> **Remounting later to fix something (e.g. from the installer USB again after a bad boot).**
+> `hosts/system/hardware-configuration.nix` mounts by `by-label/nixos` + `subvol=@`/`@home`/`@nix`/
+> `@snapshots`, not a flat root — mounting just `/dev/nvme0n1p2` straight to `/mnt` gets you the
+> *top-level* btrfs volume, not the `@` subvolume the installed system actually boots from, and
+> `nixos-enter --root /mnt` against that will look broken (wrong/missing `/nix`, `/home`) even
+> though the real install is fine. Repeat the same `-o subvol=@...` mounts from above (all four,
+> plus the ESP) before `nixos-enter`, not a plain mount.
+
 ```bash
 # --- Option B: declarative partitioning with disko instead of the manual steps above ---
 # Write hosts/system/disko.nix (see README.md section 5 for where it slots into the repo),
@@ -214,51 +264,62 @@ mount /dev/nvme0n1p3 /mnt/home
 
 > **No swap partition, by design.** This layout relies on zram (compressed,
 > RAM-backed swap — no disk partition needed) instead of a physical swap
-> partition. `hosts/system/configuration.nix` doesn't enable it yet, so add
-> it yourself before or after the install:
-> ```nix
-> zramSwap.enable = true;
-> ```
+> partition; `zramSwap.enable = true;` is already set in
+> `hosts/system/configuration.nix`, nothing to add here.
 > If you change your mind and want a real swap partition after all, give it
 > its own `[New]` entry in `cfdisk` before `[Write]` (type "Linux swap"),
 > then `mkswap /dev/nvme0n1pX && swapon /dev/nvme0n1pX` instead of/alongside
 > the zram option.
 >
 > With three separate partitions, `nixos-generate-config` in step 1.3 below
-> will write **three** plain `fileSystems` entries (`/`, `/home`,
-> `/boot/efi`) — no `subvol=` options anywhere, since there's no btrfs here
-> — and `swapDevices = [ ];` stays empty. Replace the single btrfs
-> `fileSystems."/"` block in `hosts/system/hardware-configuration.nix` with
-> all three.
+> will detect **three** plain `fileSystems` entries (`/`, `/home`,
+> `/boot/efi`) — no `subvol=` options anywhere, since there's no btrfs here —
+> and `swapDevices = [ ];` stays empty. See the Option C note in 1.3 for what
+> to do with that.
 
-### 1.3 Generate hardware info and reconcile it with the repo
-
-```bash
-nixos-generate-config --root /mnt
-```
-
-This writes a fresh `/mnt/etc/nixos/hardware-configuration.nix`. **Diff it against
-`hosts/system/hardware-configuration.nix` in this repo** — the filesystem UUIDs will differ
-from the placeholder values (those were lifted from the old Arch install's `fstab`/`lsblk`
-output in `system-audit.txt`), and the `fileSystems` block needs to match whichever
-partitioning option you used in 1.2:
-- **Option A** (btrfs + subvolumes): `subvol=@`, `subvol=@home`, `subvol=@nix` entries
-  instead of the single `subvol=/`.
-- **Option C** (cfdisk, plain partitions, no swap): three separate `fileSystems` entries
-  (`/`, `/home`, `/boot/efi`), no `subvol=` anywhere, and `swapDevices = [ ];` stays empty.
-
-Copy the corrected `fileSystems`/`boot.initrd.availableKernelModules` block back into this
-repo's file, keeping the NVIDIA PRIME / graphics stanzas that `nixos-generate-config` does
-**not** know how to write.
-
-### 1.4 Put this flake where the installer expects it
+### 1.3 Generate hardware info, then put this flake where the installer expects it
 
 ```bash
-mkdir -p /mnt/etc/nixos
-cp -r /tmp/nix-os/* /mnt/etc/nixos/
-# (the hardware-configuration.nix you reconciled in 1.3 should already be the one
-#  sitting in /tmp/nix-os/hosts/system/ before you copy — edit it there, not after)
+# --show-hardware-config only PRINTS the detected config to stdout — it writes
+# nothing under /mnt/etc/nixos, which matters for the next step.
+nixos-generate-config --root /mnt --show-hardware-config > /tmp/hw.nix
+
+# /mnt/etc/nixos is still empty at this point, so `git clone` can target it
+# directly -- this is also what gives you a real, .git-backed checkout at
+# /etc/nixos post-install (see section 2's intro), instead of a plain copy.
+nix-shell -p git --run \
+  "git clone https://github.com/ZeroNiki/Nix-os-configuration.git /mnt/etc/nixos"
+# (private repo: use one of the auth variants from 1.1b, cloning to
+# /mnt/etc/nixos instead of /tmp/nix-os)
+
+# Reconcile: compare what the installer actually detected against what's
+# already committed in hosts/system/hardware-configuration.nix.
+diff /tmp/hw.nix /mnt/etc/nixos/hosts/system/hardware-configuration.nix
 ```
+
+Because `fileSystems` in this repo is already written by **label**
+(`by-label/nixos` + `subvol=@`/`@home`/`@nix`/`@snapshots`, `by-label/EFI`) rather than by UUID,
+it does not need editing as long as you formatted the disk with those exact labels in step 1.2
+(Option A) — the diff above should come back essentially empty there. The one block really
+worth reading in that diff is `boot.initrd.availableKernelModules`: that list is
+hardware-detected, not something `system-audit.txt` could tell you in advance, so if
+`/tmp/hw.nix` lists modules the repo's copy doesn't have, add them to
+`hosts/system/hardware-configuration.nix` before installing.
+
+> Used **Option C** instead (plain partitions, no btrfs)? Then the diff will be real: three
+> separate `fileSystems` entries (`/`, `/home`, `/boot/efi`) with no `subvol=`, and
+> `swapDevices = [ ];` stays empty. Replace the whole `fileSystems` block in
+> `hosts/system/hardware-configuration.nix` with what `/tmp/hw.nix` shows, by hand, before
+> installing.
+
+> **`stateVersion`:** `/tmp/hw.nix` from `nixos-generate-config` won't include a
+> `system.stateVersion` line (that only shows up in the full `configuration.nix` it would
+> otherwise generate), but it's worth a deliberate decision rather than leaving the repo's
+> `"24.11"` on autopilot: pick the value matching the actual installer ISO/channel you're
+> booting from, and set it in **both** `system.stateVersion`
+> (`hosts/system/configuration.nix`) and `home.stateVersion` (`home/home.nix`) together, in
+> their own follow-up commit — not mixed into this install's commit, and not silently left
+> stale either.
 
 ### 1.5 Install
 
@@ -283,6 +344,11 @@ reboot
 Remove the installer USB when prompted. First boot lands on **greetd + tuigreet**
 (`modules/desktop/niri.nix`) → log in → Niri starts automatically via the greeter's
 `niri-session` command.
+
+If that first graphical session is a black screen instead: don't reach for the installer USB
+yet. Try **Ctrl+Alt+F2** first for a plain TTY (login and poke around from there), and if the
+session itself is the problem, reboot and pick **`intel-only`** from the systemd-boot menu —
+see 0.1 item 4 and `modules/hardware/nvidia.nix` for what that entry does.
 
 ---
 
@@ -315,9 +381,11 @@ sudo nixos-rebuild test --flake .
 # in section 0 above for the kind of breakage to expect).
 nix flake update
 
-# Reclaim disk space: drop old generations, then garbage-collect the store.
-nix-env --delete-generations old
-nix-store --gc
+# Reclaim disk space: drop old generations and garbage-collect the store.
+# (`nix-env --delete-generations old` only touches the per-user profile, not
+# the system generations a NixOS install actually accumulates — this is the
+# command that matters here.)
+sudo nix-collect-garbage -d
 ```
 
 ### 2.2 Rollback
@@ -335,7 +403,7 @@ sudo nixos-rebuild switch --rollback
 | You want to... | Edit this file |
 |---|---|
 | Add/remove a CLI or GUI package | `home/home.nix` (`home.packages`) |
-| Change NVIDIA PRIME mode (offload ↔ sync) | `hosts/system/hardware-configuration.nix` (`hardware.nvidia.prime`) |
+| Change NVIDIA PRIME mode (offload ↔ sync) | `modules/hardware/nvidia.nix` (`hardware.nvidia.prime`) |
 | Enable/disable a system service (docker, libvirt, bluetooth...) | `hosts/system/configuration.nix` |
 | Swap bar/launcher/notifications (e.g. wire up a real Noctalia package) | `home/desktop/noctalia.nix` |
 | Swap compositor Niri → DWL | `modules/desktop/niri.nix` → new `modules/desktop/dwl.nix`, then flip the import in `flake.nix`'s module list. `xdg.portal.wlr.enable` is already on, so the portal layer needs no change. |
@@ -343,3 +411,19 @@ sudo nixos-rebuild switch --rollback
 After any edit: `nixos-rebuild build --flake .` to check it compiles, then `sudo nixos-rebuild
 switch --flake .` to apply. Commit the working `flake.lock` alongside config changes so the
 history always maps a config version to the exact package set it was tested against.
+
+### 2.4 Home Manager vs. stow — don't manage the same config twice
+
+Home Manager (`home/home.nix`, `home/desktop/noctalia.nix`) already generates and owns the
+config files for: zsh (`.zshrc`), git, delta, fzf, zoxide, bat, lsd, htop, tmux, yazi, waybar,
+rofi, mako, and ghostty. If `~/.dotfiles` (the Arch-era stow setup) still has packages for any
+of those same programs, `stow` will refuse to lay its symlinks over Home Manager's generated
+files rather than silently clobbering them — drop those entries from the dotfiles side instead
+of fighting it.
+
+Niri is the one exception: `programs.niri.enable` only installs the binary and session glue, it
+does **not** touch `~/.config/niri/config.kdl` — that one is still meant to come from
+`~/.dotfiles` via `stow niri`. On a fresh install, Niri will have already auto-created its own
+default `config.kdl` on first login (see the "Niri default-config safety net" packages —
+`alacritty`/`fuzzel` — in `home/home.nix`); delete that auto-created file before running
+`stow niri`, or stow will refuse there too, same as above.

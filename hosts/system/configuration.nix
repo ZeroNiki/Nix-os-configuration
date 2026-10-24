@@ -4,9 +4,17 @@
   # --- Bootloader ---
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+  # Must match wherever the ESP is actually mounted (hardware-configuration.nix
+  # mounts it at /boot/efi, not the NixOS default of /boot) — without this,
+  # bootctl looks for a FAT filesystem at /boot, finds the btrfs root instead,
+  # and nixos-install fails installing the bootloader.
+  boot.loader.efi.efiSysMountPoint = "/boot/efi";
+  boot.loader.systemd-boot.configurationLimit = 10; # ESP is 1 GiB; cap how many generations' kernels/initrds get copied onto it
   boot.kernelPackages = pkgs.linuxPackages_zen;
 
   nixpkgs.config.allowUnfree = true; # required for the NVIDIA driver
+
+  nix.settings.experimental-features = [ "nix-command" "flakes" ]; # otherwise `nix flake update`/`nix flake check` don't work post-install
 
   # --- Hostname & networking ---
   networking.hostName = "gigabyte-nixos";
@@ -16,8 +24,11 @@
   # no extra config needed.
 
   # --- Locale / Time ---
-  time.timeZone = "Europe/Moscow"; # adjust to your actual timezone
+  time.timeZone = "Asia/Tashkent";
   i18n.defaultLocale = "en_US.UTF-8";
+
+  # --- Swap: zram instead of a disk partition (see Usage.md 1.2, Option A) ---
+  zramSwap.enable = true;
 
   # --- Audio: PipeWire (replaces pipewire/pipewire-pulse/pipewire-jack/wireplumber from Arch) ---
   security.rtkit.enable = true;

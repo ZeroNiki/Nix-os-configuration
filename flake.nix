@@ -23,6 +23,7 @@
         modules = [
           ./hosts/system/configuration.nix
           ./hosts/system/hardware-configuration.nix
+          ./modules/hardware/nvidia.nix
           ./modules/desktop/niri.nix
 
           home-manager.nixosModules.home-manager
