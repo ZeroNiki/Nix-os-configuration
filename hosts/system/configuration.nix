@@ -1,0 +1,102 @@
+{ config, lib, pkgs, username, ... }:
+
+{
+  # --- Bootloader ---
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+  boot.kernelPackages = pkgs.linuxPackages_zen;
+
+  nixpkgs.config.allowUnfree = true; # required for the NVIDIA driver
+
+  # --- Hostname & networking ---
+  networking.hostName = "gigabyte-nixos";
+  networking.networkmanager.enable = true;
+  networking.networkmanager.wifi.powersave = true;
+  # Realtek r8169 + Intel iwlwifi are picked up automatically by the kernel,
+  # no extra config needed.
+
+  # --- Locale / Time ---
+  time.timeZone = "Europe/Moscow"; # adjust to your actual timezone
+  i18n.defaultLocale = "en_US.UTF-8";
+
+  # --- Audio: PipeWire (replaces pipewire/pipewire-pulse/pipewire-jack/wireplumber from Arch) ---
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+    jack.enable = true;
+    wireplumber.enable = true;
+  };
+
+  # --- Bluetooth ---
+  hardware.bluetooth.enable = true;
+  hardware.bluetooth.powerOnBoot = true;
+  services.blueman.enable = true;
+
+  # --- Shell ---
+  programs.zsh.enable = true;
+  users.defaultUserShell = pkgs.zsh;
+
+  # --- Containers / virtualisation ---
+  virtualisation.docker.enable = true;
+  # podman is intentionally NOT enabled alongside docker to avoid the
+  # duplicated-hypervisor/duplicated-runtime problem flagged in README.md
+  # section 3. Swap this block for virtualisation.podman if you prefer a
+  # daemonless rootless runtime instead.
+
+  virtualisation.libvirtd.enable = true;
+  programs.virt-manager.enable = true;
+  # VirtualBox is deliberately dropped — libvirt/qemu covers the same need
+  # without running two hypervisors in parallel (see README.md section 3).
+
+  # --- Gaming ---
+  programs.steam = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    dedicatedServer.openFirewall = false;
+  };
+  programs.gamemode.enable = true;
+  programs.gamescope.enable = true;
+
+  # --- Fonts ---
+  fonts.packages = with pkgs; [
+    noto-fonts
+    noto-fonts-cjk-sans
+    noto-fonts-color-emoji
+    nerd-fonts.jetbrains-mono
+  ];
+
+  # --- Security ---
+  security.polkit.enable = true;
+
+  # --- User ---
+  # No password is set here on purpose (don't commit one in plaintext).
+  # Before first boot, either set `users.users.${username}.initialPassword`
+  # for a throwaway one to change on first login, or run `passwd` from the
+  # NixOS installer's chroot (`nixos-enter --root /mnt`) right after
+  # `nixos-install` — see Usage.md section 1.5.
+  users.users.${username} = {
+    isNormalUser = true;
+    description = "Nella";
+    extraGroups = [ "wheel" "networkmanager" "docker" "libvirtd" "video" "input" ];
+    shell = pkgs.zsh;
+  };
+
+  # --- Minimal system packages (everything user-facing lives in Home Manager) ---
+  environment.systemPackages = with pkgs; [
+    git
+    vim
+  ];
+
+  # --- CPU microcode ---
+  hardware.cpu.intel.updateMicrocode = true;
+
+  # --- Printing stays off by default; flip to true if you ever need CUPS ---
+  services.printing.enable = false;
+
+  # NOTE: bump this only when you deliberately opt in to a new NixOS release;
+  # it controls on-disk state format, not package versions.
+  system.stateVersion = "24.11";
+}
