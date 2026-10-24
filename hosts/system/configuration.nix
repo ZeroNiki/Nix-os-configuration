@@ -96,6 +96,38 @@
   # --- Printing stays off by default; flip to true if you ever need CUPS ---
   services.printing.enable = false;
 
+  # --- Test-VM resource sizing (only applies to `nixos-rebuild build-vm` /
+  # `nix build .config.system.build.vm`; the real install ignores this block
+  # entirely). Needed because the generated run-*-vm script hardcodes a
+  # `-object memory-backend-memfd,...,size=<memorySize>M` tied to `-m`, so
+  # bumping RAM via a bare `QEMU_OPTS="-m 8192"` at run time conflicts with
+  # that backend and QEMU refuses to start ("Machine memory size does not
+  # match the size of the memory backend"). Setting it here instead makes
+  # nixpkgs generate a consistent pair.
+  virtualisation.vmVariant = {
+    virtualisation.memorySize = 8192; # MB
+    virtualisation.cores = 4;
+    # No VGA device: this VM is verified over the serial console
+    # (QEMU_OPTS="-nographic"), not a graphical window. A real Niri session
+    # needs GPU/GBM-accelerated video (virtio-vga-gl + `-display ...,gl=on`)
+    # which turned out not to work from this particular host's GL stack —
+    # see the chat history / Usage.md for that dead end. None of this
+    # affects the real install: Niri runs against the laptop's actual Intel
+    # iGPU there, not a virtio-gpu passthrough.
+    virtualisation.qemu.options = [ "-vga" "none" ];
+
+    # Throwaway login for THIS TEST VM ONLY — the real `configuration.nix`
+    # (outside vmVariant) never sets a password, so nothing plaintext ends
+    # up in the config used for the actual install. Log in as
+    # `${username}` / `nixos`.
+    users.users.${username}.password = "nixos";
+
+    # KVM is used automatically when available (default accel=kvm:tcg);
+    # no extra flag needed, and forcing -enable-kvm would make the VM fail
+    # outright instead of falling back to software emulation on hosts/CI
+    # where KVM isn't usable.
+  };
+
   # NOTE: bump this only when you deliberately opt in to a new NixOS release;
   # it controls on-disk state format, not package versions.
   system.stateVersion = "24.11";

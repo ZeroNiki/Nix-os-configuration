@@ -64,13 +64,87 @@ root). Back up anything in `/home` you care about before this section; it is des
 ### 1.1 Boot the NixOS installer and get this flake onto it
 
 ```bash
-# From the NixOS live ISO, with network up (nmtui, or nmcli for wifi):
-nmcli device wifi connect "<SSID>" password "<password>"
+# From the NixOS live ISO, bring networking up first.
 
-# Clone (or copy via USB) this repo onto the live system:
-nix-shell -p git --run "git clone <your-repo-url> /tmp/nix-os"
+# --- Wi-Fi via NetworkManager (default on the graphical/minimal ISO) ---
+nmcli device wifi connect "<SSID>" password "<password>"
+# or interactively: nmtui
+
+# --- Wi-Fi via iwd, IF that's what this particular boot image ships ---
+# Not every NixOS ISO build includes iwd — check first:
+if command -v iwctl >/dev/null 2>&1; then
+  iwctl
+  # inside the interactive iwctl prompt:
+  #   device list                        # confirm the Wi-Fi device, e.g. wlan0
+  #   station wlan0 scan
+  #   station wlan0 get-networks
+  #   station wlan0 connect "<SSID>"     # prompts for the password
+  #   exit
+else
+  echo "iwctl not present on this ISO — use nmcli/nmtui above instead."
+fi
+
+# Either way, confirm you're actually online before continuing:
+ping -c1 cache.nixos.org
+```
+
+### 1.1b Pull this flake from GitHub instead of a USB stick
+
+This repo's `origin` is already set to a real GitHub remote
+(`git@github.com:ZeroNiki/Nix-os-configuration.git`), so the installer ISO can clone it
+directly over the network instead of you carrying it in on a USB stick. Worth doing — it's
+the same "config lives in git, not on whatever machine happens to have it" idea the rest of
+this repo already follows, and it means any future reinstall is just "clone + install" from
+any machine, not "remember which USB stick has the current version."
+
+```bash
+# From your CURRENT machine (Arch), before rebooting into the installer —
+# push whatever you have locally so the ISO can pull the real thing:
+cd /home/nellaror/Documents/Training/nix-os
+git add -A
+git commit -m "..."        # only if there's something worth committing
+git push origin main
+```
+
+```bash
+# From the NixOS live ISO, once networking is up (1.1 above):
+
+# --- If the GitHub repo is PUBLIC: plain HTTPS clone, no credentials needed ---
+nix-shell -p git --run \
+  "git clone https://github.com/ZeroNiki/Nix-os-configuration.git /tmp/nix-os"
+
+# --- If the repo is PRIVATE: the live ISO has no SSH key or saved credentials
+#     by default, so pick ONE of these first ---
+
+#   (a) Fine-grained GitHub personal access token (simplest, no key copying):
+nix-shell -p git --run \
+  "git clone https://<token>@github.com/ZeroNiki/Nix-os-configuration.git /tmp/nix-os"
+
+#   (b) An actual SSH key, copied onto the ISO (e.g. via the same USB stick,
+#       or `scp` from another machine on the same network):
+mkdir -p ~/.ssh && cp /path/to/copied/id_ed25519 ~/.ssh/ && chmod 600 ~/.ssh/id_ed25519
+nix-shell -p git openssh --run \
+  "eval \$(ssh-agent) && ssh-add ~/.ssh/id_ed25519 && \
+   git clone git@github.com:ZeroNiki/Nix-os-configuration.git /tmp/nix-os"
+
 cd /tmp/nix-os
 ```
+
+> **Don't let this become a reason to commit secrets.** The GitHub flow only works cleanly
+> because nothing sensitive lives in this repo's git history: no account password
+> (`hosts/system/configuration.nix` deliberately leaves it unset — 1.5 below), no age/sops
+> keys, and now (after the `.gitignore` update alongside this section) no stray
+> `gigabyte-nixos.qcow2` test-VM disk image or `result`/`result-*` build symlinks either —
+> those are real files that end up sitting in this directory after the Stage-0 VM testing
+> above and have no business in version control. If you later add `sops-nix` for real
+> secrets (API tokens, VPN configs), keep the **encrypted** `.sops.yaml`-managed files in the
+> repo and the **decryption key** (`~/.config/sops/age/keys.txt`) off of it, copied onto each
+> machine out-of-band instead.
+>
+> Not pushing to GitHub at all and copying the repo via USB stays a perfectly fine, slightly
+> more manual alternative — pick whichever matches how many machines you're actually
+> provisioning. For "just this one laptop," USB is simpler; for "this laptop today, maybe a
+> desktop later," the GitHub flow pays for itself the second time.
 
 ### 1.2 Partition the disk
 
@@ -115,6 +189,48 @@ nix --extra-experimental-features "nix-command flakes" run github:nix-community/
   --mode destroy,format,mount ./hosts/system/disko.nix
 ```
 
+```bash
+# --- Option C: cfdisk — EFI + separate /home, NO swap partition ---
+# Simpler than Option A: three plain partitions instead of one btrfs volume
+# with subvolumes, and no swap partition at all (swap is handled by zram
+# instead — see the note right after this block).
+cfdisk /dev/nvme0n1
+# cfdisk is a full-screen menu driven by arrow keys + Enter; nothing is
+# written to the disk until you explicitly select [Write]. Create, in order:
+#   1. [New] -> size ~1G           -> [Type] -> "EFI System"
+#   2. [New] -> size e.g. 100G     -> [Type] -> "Linux filesystem"   (becomes /)
+#   3. [New] -> remaining space    -> [Type] -> "Linux filesystem"   (becomes /home)
+#   Then: [Write] -> type "yes" to confirm -> [Quit]
+
+mkfs.fat -F32 -n EFI  /dev/nvme0n1p1
+mkfs.ext4 -L nixos    /dev/nvme0n1p2
+mkfs.ext4 -L home     /dev/nvme0n1p3
+
+mount /dev/nvme0n1p2 /mnt
+mkdir -p /mnt/{boot/efi,home}
+mount /dev/nvme0n1p1 /mnt/boot/efi
+mount /dev/nvme0n1p3 /mnt/home
+```
+
+> **No swap partition, by design.** This layout relies on zram (compressed,
+> RAM-backed swap — no disk partition needed) instead of a physical swap
+> partition. `hosts/system/configuration.nix` doesn't enable it yet, so add
+> it yourself before or after the install:
+> ```nix
+> zramSwap.enable = true;
+> ```
+> If you change your mind and want a real swap partition after all, give it
+> its own `[New]` entry in `cfdisk` before `[Write]` (type "Linux swap"),
+> then `mkswap /dev/nvme0n1pX && swapon /dev/nvme0n1pX` instead of/alongside
+> the zram option.
+>
+> With three separate partitions, `nixos-generate-config` in step 1.3 below
+> will write **three** plain `fileSystems` entries (`/`, `/home`,
+> `/boot/efi`) — no `subvol=` options anywhere, since there's no btrfs here
+> — and `swapDevices = [ ];` stays empty. Replace the single btrfs
+> `fileSystems."/"` block in `hosts/system/hardware-configuration.nix` with
+> all three.
+
 ### 1.3 Generate hardware info and reconcile it with the repo
 
 ```bash
@@ -124,11 +240,16 @@ nixos-generate-config --root /mnt
 This writes a fresh `/mnt/etc/nixos/hardware-configuration.nix`. **Diff it against
 `hosts/system/hardware-configuration.nix` in this repo** — the filesystem UUIDs will differ
 from the placeholder values (those were lifted from the old Arch install's `fstab`/`lsblk`
-output in `system-audit.txt`), and if you repartitioned with subvolumes per step 1.2 the
-`fileSystems` block needs `subvol=@`, `subvol=@home`, `subvol=@nix` entries instead of the
-single `subvol=/`. Copy the corrected `fileSystems`/`boot.initrd.availableKernelModules`
-block back into this repo's file, keeping the NVIDIA PRIME / graphics stanzas that
-`nixos-generate-config` does **not** know how to write.
+output in `system-audit.txt`), and the `fileSystems` block needs to match whichever
+partitioning option you used in 1.2:
+- **Option A** (btrfs + subvolumes): `subvol=@`, `subvol=@home`, `subvol=@nix` entries
+  instead of the single `subvol=/`.
+- **Option C** (cfdisk, plain partitions, no swap): three separate `fileSystems` entries
+  (`/`, `/home`, `/boot/efi`), no `subvol=` anywhere, and `swapDevices = [ ];` stays empty.
+
+Copy the corrected `fileSystems`/`boot.initrd.availableKernelModules` block back into this
+repo's file, keeping the NVIDIA PRIME / graphics stanzas that `nixos-generate-config` does
+**not** know how to write.
 
 ### 1.4 Put this flake where the installer expects it
 

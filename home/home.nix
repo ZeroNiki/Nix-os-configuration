@@ -68,7 +68,10 @@
     python3Packages.pip
     pipx
 
-    kubectl
+    # minikube bundles its own (older) kubectl under bin/, which otherwise
+    # collides with the standalone kubectl package below during buildEnv;
+    # hiPrio makes the explicit, newer kubectl win that conflict.
+    (lib.hiPrio kubectl)
     kubernetes-helm
     minikube
     terraform
