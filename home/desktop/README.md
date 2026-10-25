@@ -50,7 +50,7 @@ cliphist wipe   # очистить историю
 
 ## Мониторы: kanshi
 
-`services.kanshi`, два профиля: `laptop` (только `eDP-1`) и `external` (`eDP-1` + любой другой монитор справа, масштаб 1.25). Оба вызывают `dwl-status refresh`. Подробно, с добавлением своего профиля, — в [`../dwl/README.md`](../dwl/README.md#мониторы).
+`services.kanshi`, три профиля: `laptop` (только `eDP-1`), `desk` (`eDP-1` + HCS PXG27QV2 справа, 2560×1440@144, масштаб 1) и `external` (`eDP-1` + любой другой монитор справа, масштаб 1). Все вызывают `dwl-status refresh`. Подробно, с добавлением своего профиля, — в [`../dwl/README.md`](../dwl/README.md#мониторы).
 
 ## Утилиты
 

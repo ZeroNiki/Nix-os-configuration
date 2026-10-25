@@ -91,8 +91,14 @@ in
 
   # --- Monitors ---
   # dwl alone already places a new monitor (monrules in home/dwl/config.h);
-  # kanshi puts the external one to the right of the laptop at its preferred
-  # (native) mode, 1440p at scale 1.25, i.e. 2048x1152 logical pixels.
+  # kanshi puts the external one to the right of the laptop at scale 1.
+  # "desk" is the HCS PXG27QV2 (matched by its description, so any connector)
+  # at 144 Hz instead of its preferred 60; it must come before "external",
+  # since kanshi takes the first matching profile and "*" matches anything.
+  # Modes are in mHz as wlr-randr shows them: kanshi picks the closest mode
+  # within 0.05 Hz, so 144.002 can only be 144.001999, never 120 or 60.
+  # No adaptiveSync: HDMI-A-2 on the NVIDIA reports vrr_capable = 0, and
+  # wlroots would then reject the whole profile (README.md in home/dwl).
   # "*" is any other output, whatever connector it is on (see `wlr-randr`).
   # dwlb puts a bar on a new output by itself, but its status text only
   # arrives with dwl-status's next line, so each profile asks for it at once.
@@ -111,6 +117,26 @@ in
         ];
       }
       {
+        profile.name = "desk";
+        profile.exec = "dwl-status refresh";
+        profile.outputs = [
+          {
+            criteria = "eDP-1";
+            status = "enable";
+            mode = "1920x1200@165.015Hz";
+            position = "0,0";
+            scale = 1.0;
+          }
+          {
+            criteria = "HCS PXG27QV2 0x00000001";
+            status = "enable";
+            mode = "2560x1440@144.002Hz";
+            position = "1920,0";
+            scale = 1.0;
+          }
+        ];
+      }
+      {
         profile.name = "external";
         profile.exec = "dwl-status refresh";
         profile.outputs = [
@@ -123,7 +149,7 @@ in
             criteria = "*";
             status = "enable";
             position = "1920,0";
-            scale = 1.25;
+            scale = 1.0;
           }
         ];
       }
