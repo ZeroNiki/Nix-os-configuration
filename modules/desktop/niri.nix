@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, username, ... }:
 
 {
   # --- Niri: scrollable-tiling Wayland compositor (current primary compositor) ---
@@ -15,7 +15,10 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --cmd niri-session";
+        # --sessions lists every registered session (niri, dwl from dwl.nix)
+        # under F3; --remember-session keeps the last pick, dwl-session (same
+        # path as in dwl.nix) is the default when nothing was picked yet.
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions --cmd /etc/profiles/per-user/${username}/bin/dwl-session";
         user = "greeter";
       };
     };

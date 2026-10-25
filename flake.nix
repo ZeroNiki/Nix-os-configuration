@@ -25,6 +25,7 @@
           ./hosts/system/hardware-configuration.nix
           ./modules/hardware/nvidia.nix
           ./modules/desktop/niri.nix
+          ./modules/desktop/dwl.nix
 
           home-manager.nixosModules.home-manager
           {

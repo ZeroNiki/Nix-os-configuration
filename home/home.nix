@@ -3,6 +3,7 @@
 {
   imports = [
     ./desktop/noctalia.nix
+    ./dwl # dwl + bar (dwlb) + launcher theme, see home/dwl/default.nix
   ];
 
   home.username = username;
@@ -62,6 +63,7 @@
     smartmontools
     plocate
     neovim
+    claude-code
 
     nodejs
     python3

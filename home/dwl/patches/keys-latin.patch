@@ -1,0 +1,13 @@
+--- a/dwl.c
++++ b/dwl.c
+@@ -1744,7 +1744,9 @@
+ 	/* Translate libinput keycode -> xkbcommon */
+ 	uint32_t keycode = event->keycode + 8;
+ 	struct wlr_keyboard *kb = &group->wlr_group->keyboard;
+-	xkb_layout_index_t layout = xkb_state_key_get_layout(kb->xkb_state, keycode);
++	/* Always look bindings up in the first (latin) layout, so they keep
++	 * working while a non-latin layout (e.g. "ru") is active */
++	xkb_layout_index_t layout = 0;
+ 	int handled = 0;
+ 
+ 	// Get the keysyms for level 0 (normal) and level 1 (shifted)
