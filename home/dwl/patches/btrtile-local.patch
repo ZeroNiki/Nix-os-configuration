@@ -1,0 +1,119 @@
+[local] btrtile adaptation for this config: gappx from patches/gaps.patch, layout checks by arrange function instead of symbol, setfact for Mod+h/l
+
+diff --git a/btrtile.h b/btrtile.h
+index b202fcd..f53fd7d 100644
+--- a/btrtile.h
++++ b/btrtile.h
+@@ -50,6 +50,7 @@ static void remove_client(Monitor *m, Client *c);
+ static void remove_leaf(Monitor *m, Client *c);
+ static void resize_split(unsigned int need_vertical, double delta, int in_pixels);
+ static void resize_split_px(unsigned int need_vertical, double pixels);
++static void setfact(const Arg *arg);
+ static void setratio_h(const Arg *arg);
+ static void setratio_v(const Arg *arg);
+ static Client *split_target(Monitor *m);
+@@ -266,19 +267,12 @@ find_suitable_split(Monitor *m, LayoutNode *start_node,
+ 	return NULL;
+ }
+ 
+-#ifdef BTRTILE_GAPS
++/* gappx (patches/gaps.patch): half of it on each side of a split */
+ int
+ half_gap(Monitor *m)
+ {
+-	return m->gaps ? (int)gappx / 2 : 0;
++	return gappx / 2;
+ }
+-#else
+-int
+-half_gap(Monitor *m)
+-{
+-	return 0;
+-}
+-#endif
+ 
+ int
+ in_tree(Monitor *m, Client *c)
+@@ -516,21 +510,12 @@ node_min_size(Monitor *m, LayoutNode *node, int *w, int *h)
+ 	}
+ }
+ 
+-#ifdef BTRTILE_GAPS
+ int
+ outer_gap(Monitor *m)
+ {
+-	return m->gaps ? (int)gappx : 0;
++	return gappx;
+ }
+ 
+-#else
+-int
+-outer_gap(Monitor *m)
+-{
+-	return 0;
+-}
+-#endif
+-
+ /* Remove c if in the tree */
+ void
+ remove_client(Monitor *m, Client *c)
+@@ -582,7 +567,8 @@ resize_split(unsigned int need_vertical, double delta, int in_pixels)
+ 	LayoutNode *split;
+ 	double extent, ratio;
+ 
+-	if (!selmon || !selmon->lt[selmon->sellt]->arrange) {
++	/* the tree is stale under other layouts, don't arrange by it */
++	if (!selmon || selmon->lt[selmon->sellt]->arrange != btrtile) {
+ 		return;
+     }
+ 
+@@ -626,6 +612,16 @@ resize_split_px(unsigned int need_vertical, double pixels)
+ 	resize_split(need_vertical, pixels, 1);
+ }
+ 
++/* setratio_h under btrtile, setmfact under the other layouts */
++void
++setfact(const Arg *arg)
++{
++	if (selmon && selmon->lt[selmon->sellt]->arrange == btrtile)
++		setratio_h(arg);
++	else
++		setmfact(arg);
++}
++
+ void
+ setratio_h(const Arg *arg)
+ {
+diff --git a/dwl.c b/dwl.c
+index a93e78a..30d8bd1 100644
+--- a/dwl.c
++++ b/dwl.c
+@@ -355,6 +355,7 @@ static void setmon(Client *c, Monitor *m, uint32_t newtags);
+ static void setpsel(struct wl_listener *listener, void *data);
+ static void setsel(struct wl_listener *listener, void *data);
+ static void setup(void);
++static void setfact(const Arg *arg);
+ static void setratio_h(const Arg *arg);
+ static void setratio_v(const Arg *arg);
+ static void swapclients(const Arg *arg);
+@@ -737,7 +738,7 @@ buttonpress(struct wl_listener *listener, void *data)
+ 		if (!locked && cursor_mode != CurNormal && cursor_mode != CurPressed) {
+ 			/* btrtile */
+ 			c = grabc;
+-			if (c && c->was_tiled && !strcmp(selmon->ltsymbol, "|w|")) {
++			if (c && c->was_tiled && selmon->lt[selmon->sellt]->arrange == btrtile) {
+ 				if (cursor_mode == CurMove && c->isfloating) {
+ 					setmon(c, selmon, 0);
+ 					insert_client(selmon, xytoclient(cursor->x, cursor->y), c);
+@@ -2174,7 +2175,10 @@ moveresize(const Arg *arg)
+ 		return;
+ 
+ 	cursor_mode = arg->ui;
+-	grabc->was_tiled = (!grabc->isfloating && !grabc->isfullscreen);
++	/* only btrtile drags/resizes tiled clients in place, the other
++	 * layouts float them as before */
++	grabc->was_tiled = (!grabc->isfloating && !grabc->isfullscreen
++			&& grabc->mon->lt[grabc->mon->sellt]->arrange == btrtile);
+ 
+ 	if (grabc->was_tiled) {
+ 		switch (cursor_mode) {

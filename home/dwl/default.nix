@@ -21,6 +21,10 @@ let
     patches = (old.patches or [ ]) ++ [
       ./patches/gaps.patch # gappx in config.h
       ./patches/keys-latin.patch # bindings keep working on the "ru" layout
+      # bspwm-like tree layout, codeberg.org/dwl/dwl-patches btrtile v0.9 as is,
+      # then our changes to it (gappx, Mod+h/l); settings in config.h
+      ./patches/btrtile.patch
+      ./patches/btrtile-local.patch
     ];
   });
 

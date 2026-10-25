@@ -18,6 +18,17 @@ static const float urgentcolor[]           = COLOR(0xe67e80ff);
 /* This conforms to the xdg-protocol. Set the alpha to zero to restore the old behavior */
 static const float fullscreen_bg[]         = COLOR(0x232a2eff); /* You can also use glsl colors */
 
+/* btrtile (patches/btrtile.patch), set up like bspwm with
+ * automatic_scheme longest_side + initial_polarity second_child:
+ * a new window halves the focused one along its longer side and goes
+ * right/bottom of it; a closed window's sibling takes its place */
+static const int use_active_for_splits     = 1;    /* 1: split the focused client, 0: the one under the pointer */
+static const int force_split               = 2;    /* 0: new client on the pointer's side, 1: always left/top, 2: always right/bottom */
+static const int preserve_split            = 1;    /* 1: a split keeps the direction it got when created */
+static const float split_width_multiplier  = 1.0f; /* split side by side when width >= height * this */
+static const uint32_t resize_interval_ms   = 16;   /* Mod+right drag updates at most every 16ms */
+enum Direction { DIR_LEFT, DIR_RIGHT, DIR_UP, DIR_DOWN };
+
 /* tagging - TAGCOUNT must be no greater than 31 */
 #define TAGCOUNT (9)
 
@@ -35,6 +46,7 @@ static const Rule rules[] = {
 /* layout(s) */
 static const Layout layouts[] = {
 	/* symbol     arrange function */
+	{ "[B]",      btrtile }, /* first: the default on every monitor */
 	{ "[]=",      tile },
 	{ "><>",      NULL },    /* no layout function means floating behavior */
 	{ "[M]",      monocle },
@@ -144,14 +156,18 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_k,           focusstack,       {.i = -1} },
 	{ MODKEY,                    XKB_KEY_i,           incnmaster,       {.i = +1} },
 	{ MODKEY,                    XKB_KEY_d,           incnmaster,       {.i = -1} },
-	{ MODKEY,                    XKB_KEY_h,           setmfact,         {.f = -0.05f} },
-	{ MODKEY,                    XKB_KEY_l,           setmfact,         {.f = +0.05f} },
+	/* setfact: moves the focused client's vertical split under [B], mfact otherwise */
+	{ MODKEY,                    XKB_KEY_h,           setfact,          {.f = -0.05f} },
+	{ MODKEY,                    XKB_KEY_l,           setfact,          {.f = +0.05f} },
+	{ MODKEY|WLR_MODIFIER_CTRL,  XKB_KEY_k,           setratio_v,       {.f = -0.05f} },
+	{ MODKEY|WLR_MODIFIER_CTRL,  XKB_KEY_j,           setratio_v,       {.f = +0.05f} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Return,      zoom,             {0} },
 	{ MODKEY,                    XKB_KEY_Tab,         view,             {0} },
 	{ MODKEY,                    XKB_KEY_q,           killclient,       {0} },
-	{ MODKEY,                    XKB_KEY_t,           setlayout,        {.v = &layouts[0]} },
-	{ MODKEY,                    XKB_KEY_f,           setlayout,        {.v = &layouts[1]} },
-	{ MODKEY,                    XKB_KEY_m,           setlayout,        {.v = &layouts[2]} },
+	{ MODKEY,                    XKB_KEY_w,           setlayout,        {.v = &layouts[0]} }, /* btrtile */
+	{ MODKEY,                    XKB_KEY_t,           setlayout,        {.v = &layouts[1]} }, /* tile */
+	{ MODKEY,                    XKB_KEY_f,           setlayout,        {.v = &layouts[2]} }, /* floating */
+	{ MODKEY,                    XKB_KEY_m,           setlayout,        {.v = &layouts[3]} }, /* monocle */
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_space,       togglefloating,   {0} },
 	{ MODKEY,                    XKB_KEY_e,           togglefullscreen, {0} },
 	{ MODKEY,                    XKB_KEY_0,           view,             {.ui = ~0} },
@@ -160,6 +176,13 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_period,      focusmon,         {.i = WLR_DIRECTION_RIGHT} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_comma,       tagmon,           {.i = WLR_DIRECTION_LEFT} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_period,      tagmon,           {.i = WLR_DIRECTION_RIGHT} },
+	/* btrtile: swap with the neighbour in a direction, flip/mirror the split */
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Up,          swapclients,      {.ui = DIR_UP} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Down,        swapclients,      {.ui = DIR_DOWN} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Left,        swapclients,      {.ui = DIR_LEFT} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Right,       swapclients,      {.ui = DIR_RIGHT} },
+	{ MODKEY|WLR_MODIFIER_CTRL,  XKB_KEY_t,           togglesplit,      {0} },
+	{ MODKEY|WLR_MODIFIER_CTRL,  XKB_KEY_y,           swapsplit,        {0} },
 	TAGKEYS(                     XKB_KEY_1,           0),
 	TAGKEYS(                     XKB_KEY_2,           1),
 	TAGKEYS(                     XKB_KEY_3,           2),
