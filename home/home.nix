@@ -111,7 +111,6 @@
     enableZshIntegration = false;
   };
   programs.htop.enable = true;
-  programs.tmux.enable = true;
   programs.yazi = {
     enable = true;
     # `y` opens yazi and cd's into the last directory on exit
@@ -243,6 +242,7 @@
     # --- Gaming: user-level helpers (system-wide bits live in configuration.nix) ---
     protontricks
     mangohud
+    prismlauncher
   ];
 
   xdg.enable = true;
@@ -250,7 +250,7 @@
   # --- Dotfiles ---
   # Home Manager generates and owns the configs of the programs enabled here,
   # in home/desktop/common.nix and in home/dwl/default.nix: zsh (.zshrc),
-  # git, delta, fzf, zoxide, bat, lsd, htop, tmux, yazi, fastfetch, mako, ghostty,
+  # git, delta, fzf, zoxide, bat, lsd, htop, yazi, fastfetch, mako, ghostty,
   # swaylock and fuzzel. dwl has no config file, its config.h is compiled in.
   # Only nvim and vim come from ~/.dotfiles, as mkOutOfStoreSymlink links
   # (see above), so they stay editable in place. Don't `stow` any of the
