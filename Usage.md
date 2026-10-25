@@ -346,8 +346,8 @@ reboot
 ```
 
 Remove the installer USB when prompted. First boot lands on **greetd + tuigreet**
-(`modules/desktop/niri.nix`) → log in → Niri starts automatically via the greeter's
-`niri-session` command.
+(`modules/desktop/dwl.nix`) → log in → DWL starts automatically via the greeter's
+`dwl-session` command (F3 in tuigreet lists the sessions; `dwl` is the only one).
 
 If that first graphical session is a black screen instead: don't reach for the installer USB
 yet. Try **Ctrl+Alt+F2** first for a plain TTY (login and poke around from there), and if the
@@ -409,8 +409,12 @@ sudo nixos-rebuild switch --rollback
 | Add/remove a CLI or GUI package | `home/home.nix` (`home.packages`) |
 | Change NVIDIA PRIME mode (offload ↔ sync) | `modules/hardware/nvidia.nix` (`hardware.nvidia.prime`) |
 | Enable/disable a system service (docker, libvirt, bluetooth...) | `hosts/system/configuration.nix` |
-| Swap bar/launcher/notifications (e.g. wire up a real Noctalia package) | `home/desktop/noctalia.nix` |
-| Swap compositor Niri → DWL | `modules/desktop/niri.nix` → new `modules/desktop/dwl.nix`, then flip the import in `flake.nix`'s module list. `xdg.portal.wlr.enable` is already on, so the portal layer needs no change. |
+| DWL keybindings, layouts, gaps, window rules, border colors | `home/dwl/config.h` (compiled into dwl, rebuild after each edit) |
+| DWL patches | `home/dwl/patches/` + the `patches` list in `home/dwl/default.nix` |
+| Bar (dwlb), status line, autostart (`dwl-startup`), wallpaper, launcher (fuzzel), lock screen (swaylock) | `home/dwl/default.nix` |
+| Notifications (mako), terminal (ghostty), screenshot/clipboard/brightness utilities | `home/desktop/common.nix` |
+| Color palette (Everforest) | `home/theme/everforest.nix`; `config.h` repeats the colors it needs by hand |
+| Greeter (greetd + tuigreet), portals, polkit agent, Wayland session variables | `modules/desktop/dwl.nix` |
 
 After any edit: `nixos-rebuild build --flake .` to check it compiles, then `sudo nixos-rebuild
 switch --flake .` to apply. Commit the working `flake.lock` alongside config changes so the
@@ -418,16 +422,15 @@ history always maps a config version to the exact package set it was tested agai
 
 ### 2.4 Home Manager vs. stow — don't manage the same config twice
 
-Home Manager (`home/home.nix`, `home/desktop/noctalia.nix`) already generates and owns the
-config files for: zsh (`.zshrc`), git, delta, fzf, zoxide, bat, lsd, htop, tmux, yazi, waybar,
-rofi, mako, and ghostty. If `~/.dotfiles` (the Arch-era stow setup) still has packages for any
+Home Manager (`home/home.nix`, `home/desktop/common.nix`, `home/dwl/default.nix`) already
+generates and owns the config files for: zsh (`.zshrc`), git, delta, fzf, zoxide, bat, lsd,
+htop, tmux, yazi, mako, ghostty, swaylock and fuzzel. dwl itself has no config file: its
+`config.h` is compiled in. If `~/.dotfiles` (the Arch-era stow setup) still has packages for any
 of those same programs, `stow` will refuse to lay its symlinks over Home Manager's generated
 files rather than silently clobbering them — drop those entries from the dotfiles side instead
 of fighting it.
 
-Niri is the one exception: `programs.niri.enable` only installs the binary and session glue, it
-does **not** touch `~/.config/niri/config.kdl` — that one is still meant to come from
-`~/.dotfiles` via `stow niri`. On a fresh install, Niri will have already auto-created its own
-default `config.kdl` on first login (see the "Niri default-config safety net" packages —
-`alacritty`/`fuzzel` — in `home/home.nix`); delete that auto-created file before running
-`stow niri`, or stow will refuse there too, same as above.
+Only Neovim and Vim configs come from `~/.dotfiles`, and not through stow: `home/home.nix`
+links `~/.config/nvim` and `~/.vimrc` to `~/.dotfiles` with `mkOutOfStoreSymlink`, so they stay
+writable (lazy.nvim rewrites `lazy-lock.json`) and edits in `~/.dotfiles` apply without a
+rebuild.

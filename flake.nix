@@ -1,5 +1,5 @@
 {
-  description = "Minimal suckless-style NixOS configuration for Gigabyte laptop (Intel iGPU + NVIDIA RTX 4060), Niri now, DWL later";
+  description = "Minimal suckless-style NixOS configuration for Gigabyte laptop (Intel iGPU + NVIDIA RTX 4060) with the DWL Wayland compositor";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -24,7 +24,6 @@
           ./hosts/system/configuration.nix
           ./hosts/system/hardware-configuration.nix
           ./modules/hardware/nvidia.nix
-          ./modules/desktop/niri.nix
           ./modules/desktop/dwl.nix
 
           home-manager.nixosModules.home-manager

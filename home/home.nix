@@ -2,7 +2,7 @@
 
 {
   imports = [
-    ./desktop/noctalia.nix
+    ./desktop/common.nix # mako, ghostty, Wayland utilities
     ./dwl # dwl + bar (dwlb) + launcher theme, see home/dwl/default.nix
   ];
 
@@ -57,7 +57,6 @@
       k = "kubectl";
       h = "helm";
       mkdir = "mkdir -p";
-      otter = "otter-launcher";
       c = "clear";
       fetch = "fastfetch";
       # y is the yazi wrapper below, not an alias
@@ -204,37 +203,17 @@
     # --- Gaming: user-level helpers (system-wide bits live in configuration.nix) ---
     protontricks
     mangohud
-
-    # --- Niri default-config safety net ---
-    # On the fresh machine ~/.config/niri/config.kdl won't exist yet (the real
-    # dotfiles come later via stow, see the note at the bottom of this file),
-    # so Niri writes its own default config, whose built-in binds expect
-    # `alacritty` (Mod+T) and `fuzzel` (Mod+D) -- neither of which is
-    # otherwise installed here (ghostty/rofi are the chosen terminal/launcher,
-    # wired up in home/desktop/noctalia.nix, but only once that config.kdl is
-    # in place). Keep these two around so the very first login still has a
-    # working terminal and launcher before the stow step happens. Mod+Shift+/
-    # shows the full default keybind cheat sheet; Mod+Shift+E exits the session.
-    alacritty
-    fuzzel
   ];
 
   xdg.enable = true;
 
   # --- Dotfiles ---
-  # Home Manager already generates and owns the config files for several of
-  # the programs enabled above and in home/desktop/noctalia.nix: zsh (.zshrc),
-  # git, delta, fzf, zoxide, bat, lsd, htop, tmux, yazi, waybar, rofi, mako,
-  # and ghostty. Running `stow` from ~/.dotfiles for any of those same names
-  # will refuse to overwrite Home Manager's generated files/symlinks (stow
-  # errors out rather than clobbering them) — remove those entries from the
-  # dotfiles stow package list, or stop managing them here, don't run both.
-  #
-  # Niri is the exception: `programs.niri.enable` only installs the binary
-  # and session glue (modules/desktop/niri.nix) — it does NOT manage
-  # ~/.config/niri/config.kdl. That one still comes from `~/.dotfiles` via
-  # stow, same as before. On a fresh install Niri will have already written
-  # its own default config.kdl on first login (see the "Niri default-config
-  # safety net" packages above) — delete that auto-created file before
-  # running `stow niri`, or stow will refuse there too.
+  # Home Manager generates and owns the configs of the programs enabled here,
+  # in home/desktop/common.nix and in home/dwl/default.nix: zsh (.zshrc),
+  # git, delta, fzf, zoxide, bat, lsd, htop, tmux, yazi, mako, ghostty,
+  # swaylock and fuzzel. dwl has no config file, its config.h is compiled in.
+  # Only nvim and vim come from ~/.dotfiles, as mkOutOfStoreSymlink links
+  # (see above), so they stay editable in place. Don't `stow` any of the
+  # Home Manager-owned names from ~/.dotfiles: stow refuses to overwrite the
+  # generated files/symlinks, and the two would fight over them anyway.
 }

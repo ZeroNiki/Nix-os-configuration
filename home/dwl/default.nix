@@ -86,16 +86,14 @@ let
   # final `exec dwlb` reads, so everything else goes to the background first.
   dwl-startup = pkgs.writeShellApplication {
     name = "dwl-startup";
-    runtimeInputs = with pkgs; [ dwlb dwl-status procps dbus wl-clipboard cliphist swaybg ];
+    runtimeInputs = with pkgs; [ dwlb dwl-status dbus wl-clipboard cliphist swaybg ];
     text = ''
       # Hand the session env to D-Bus/systemd activated services (portals,
-      # mako, polkit agent) -- only while dwl is the sole session: with niri
-      # still running on another tty this would steal its WAYLAND_DISPLAY.
-      if ! pgrep -x niri >/dev/null; then
-        dbus-update-activation-environment --systemd \
-          WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
-        systemctl --user start polkit-agent.service || true
-      fi
+      # mako, polkit agent); dwl doesn't start graphical-session.target, so
+      # the polkit agent is started here by hand.
+      dbus-update-activation-environment --systemd \
+        WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+      systemctl --user start polkit-agent.service || true
 
       wl-paste --watch cliphist store &
 
@@ -205,8 +203,7 @@ in
     };
   };
 
-  # Launcher (Mod+p), themed to match the bar. Also what niri's default
-  # config.kdl launches on Mod+D.
+  # Launcher (Mod+p), themed to match the bar.
   programs.fuzzel = {
     enable = true;
     settings = {

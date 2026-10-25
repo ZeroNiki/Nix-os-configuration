@@ -42,7 +42,7 @@
   # session on first boot and there's no earlier generation to roll back to
   # yet. Boots with the nvidia kernel modules blacklisted entirely, so the
   # session runs on the Intel iGPU only via the "modesetting" X driver (which
-  # Niri/wlroots also uses as its DRM backend on Wayland) — no PRIME, no
+  # DWL/wlroots also uses as its DRM backend on Wayland) — no PRIME, no
   # offload, nothing nvidia-shaped left to fail.
   specialisation.intel-only.configuration = {
     system.nixos.tags = [ "intel-only" ];

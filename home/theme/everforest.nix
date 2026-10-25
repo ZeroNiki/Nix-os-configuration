@@ -1,5 +1,5 @@
 # Everforest Dark Medium, hex without '#'. Imported by home/dwl/default.nix
-# (dwlb, swaylock, fuzzel) and home/desktop/noctalia.nix (mako, ghostty);
+# (dwlb, swaylock, fuzzel) and home/desktop/common.nix (mako, ghostty);
 # home/dwl/config.h is C and repeats the values it needs by hand.
 {
   bgDim = "232a2e"; # darkest background
