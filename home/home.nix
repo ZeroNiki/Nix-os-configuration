@@ -237,7 +237,8 @@
     keepassxc
     zathura
     syncthing
-    obs-studio
+    spotify
+    mpv
 
     # --- Gaming: user-level helpers (system-wide bits live in configuration.nix) ---
     protontricks
