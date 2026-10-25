@@ -9,13 +9,14 @@ static const int bypass_surface_visibility = 0;  /* 1 means idle inhibitors will
 static const unsigned int borderpx         = 2;  /* border pixel of windows */
 static const int gappx                     = 8;  /* gap between windows and screen edges (patches/gaps.patch) */
 static const unsigned int snap             = 32; /* snap pixel */
-/* palette shared with the bar (home/dwl/default.nix) */
-static const float rootcolor[]             = COLOR(0x1a1b26ff);
-static const float bordercolor[]           = COLOR(0x292e42ff);
-static const float focuscolor[]            = COLOR(0x7aa2f7ff);
-static const float urgentcolor[]           = COLOR(0xf7768eff);
+/* Everforest Dark Medium: keep these in sync with home/theme/everforest.nix
+ * (bgDim, bg3, green, red), which the bar, lock screen and launcher use */
+static const float rootcolor[]             = COLOR(0x232a2eff);
+static const float bordercolor[]           = COLOR(0x475258ff);
+static const float focuscolor[]            = COLOR(0xa7c080ff);
+static const float urgentcolor[]           = COLOR(0xe67e80ff);
 /* This conforms to the xdg-protocol. Set the alpha to zero to restore the old behavior */
-static const float fullscreen_bg[]         = {0.0f, 0.0f, 0.0f, 1.0f}; /* You can also use glsl colors */
+static const float fullscreen_bg[]         = COLOR(0x232a2eff); /* You can also use glsl colors */
 
 /* tagging - TAGCOUNT must be no greater than 31 */
 #define TAGCOUNT (9)

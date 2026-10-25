@@ -1,15 +1,17 @@
 { config, lib, pkgs, ... }:
 
 let
-  # Tokyo Night-ish palette; the border colors in config.h use the same values.
+  # Everforest Dark Medium (home/theme/everforest.nix) under the role names
+  # the rest of this file uses; the colors in config.h match the same file.
+  theme = import ../theme/everforest.nix;
   c = {
-    bg = "1a1b26";
-    bgAlt = "292e42";
-    fg = "c0caf5";
-    dim = "565f89";
-    accent = "7aa2f7";
-    urgent = "f7768e";
-    warn = "e0af68";
+    bg = theme.bg0;
+    bgAlt = theme.bg1;
+    fg = theme.fg;
+    dim = theme.grey1;
+    accent = theme.green;
+    urgent = theme.red;
+    warn = theme.yellow;
   };
 
   font = "JetBrainsMono Nerd Font";
@@ -80,7 +82,7 @@ let
   # final `exec dwlb` reads, so everything else goes to the background first.
   dwl-startup = pkgs.writeShellApplication {
     name = "dwl-startup";
-    runtimeInputs = with pkgs; [ dwlb dwl-status procps dbus wl-clipboard cliphist ];
+    runtimeInputs = with pkgs; [ dwlb dwl-status procps dbus wl-clipboard cliphist swaybg ];
     text = ''
       # Hand the session env to D-Bus/systemd activated services (portals,
       # mako, polkit agent) -- only while dwl is the sole session: with niri
@@ -92,6 +94,9 @@ let
       fi
 
       wl-paste --watch cliphist store &
+
+      # plain background color as the wallpaper
+      swaybg -c '#${c.bg}' &
 
       # the status client needs the bar's socket, give dwlb a moment to start
       { sleep 1; dwl-status | dwlb -status-stdin all; } &

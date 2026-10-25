@@ -18,7 +18,9 @@
         # --sessions lists every registered session (niri, dwl from dwl.nix)
         # under F3; --remember-session keeps the last pick, dwl-session (same
         # path as in dwl.nix) is the default when nothing was picked yet.
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions --cmd /etc/profiles/per-user/${username}/bin/dwl-session";
+        # --theme takes only ANSI color names (the greeter runs on a 16-color
+        # VT), picked to sit close to the Everforest accents used in DWL.
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions --theme 'border=green;title=green;prompt=green;input=white;text=white;time=gray;action=darkgray;button=yellow' --cmd /etc/profiles/per-user/${username}/bin/dwl-session";
         user = "greeter";
       };
     };

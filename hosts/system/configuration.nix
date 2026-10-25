@@ -26,6 +26,8 @@
   # --- Locale / Time ---
   time.timeZone = "Asia/Tashkent";
   i18n.defaultLocale = "en_US.UTF-8";
+  # Russian man pages (MANOPT="-L ru_RU.UTF-8" in home/home.nix) need it generated.
+  i18n.extraLocales = [ "ru_RU.UTF-8/UTF-8" ];
 
   # --- Swap: zram instead of a disk partition (see Usage.md 1.2, Option A) ---
   zramSwap.enable = true;
