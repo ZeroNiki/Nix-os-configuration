@@ -1,7 +1,9 @@
 # Usage Guide: gigabyte-nixos Flake
 
-Companion to `README.md` (hardware/package audit) — this document covers how to actually
-install and live with the flake in `hosts/system/`, `modules/`, and `home/`.
+Companion to `README.md` (overview, with links to a README in every config directory) — this
+document covers how to actually install and live with the flake in `hosts/system/`, `modules/`,
+and `home/`. The original Arch hardware/package audit that sections below refer to lives in
+`docs/arch-migration-audit.md`.
 
 Flake output name used throughout: **`gigabyte-nixos`** (see `flake.nix`).
 
@@ -31,11 +33,10 @@ nix build '.#nixosConfigurations.gigabyte-nixos.config.system.build.vm' -o resul
 > exact same `run-*-vm` script.
 
 **What actually got verified in this repo, on this machine, before writing this file:**
-- `nix flake check` — passes (`all checks passed!`), after fixing four things the current
+- `nix flake check` — passes (`all checks passed!`), after fixing five things the current
   nixos-unstable/home-manager revision no longer accepts: `programs.git.userName/userEmail/
   extraConfig` (→ `programs.git.settings.*`), `programs.git.delta.enable` (→ separate
-  `programs.delta`), `programs.rofi.terminal` (→ `programs.rofi.settings.terminal`),
-  `pkgs.greetd.tuigreet` (→ `pkgs.tuigreet`), `pkgs.noto-fonts-emoji` (→
+  `programs.delta`), `pkgs.greetd.tuigreet` (→ `pkgs.tuigreet`), `pkgs.noto-fonts-emoji` (→
   `pkgs.noto-fonts-color-emoji`), and `pkgs.polkit-kde-agent` (→
   `pkgs.kdePackages.polkit-kde-agent-1`, Plasma 5 packages were dropped from nixpkgs).
   The files in this repo already have the fixes applied.
@@ -70,7 +71,7 @@ catch:
 3. **No user password is set on purpose.** Don't reboot after `nixos-install` without running
    `nixos-enter --root /mnt -c 'passwd nellaror'` first (section 1.5) — otherwise you can't log
    in on first boot.
-4. **NVIDIA PRIME + Niri on Wayland is the most likely first-boot failure point.** The config
+4. **NVIDIA PRIME + DWL on Wayland is the most likely first-boot failure point.** The config
    (open driver, modesetting, prime offload with both busIds) is sound, but hybrid-graphics +
    Wayland is where a black screen / failed-to-start-session is most likely to happen on a
    *first* boot. Unlike a later `nixos-rebuild switch`, there is no previous generation to roll
@@ -80,12 +81,12 @@ catch:
    reboot, pick `intel-only` from the boot menu (arrow keys, no USB needed), and debug from
    there — or just drop to a TTY with **Ctrl+Alt+F2** instead of rebooting at all. Only fall
    back to the installer USB + `nixos-enter --root /mnt` if neither of those gets you a shell.
-5. **Noctalia and the real dotfiles aren't in yet.** `home/desktop/noctalia.nix` currently runs
-   waybar/rofi/mako as a stand-in (Noctalia itself isn't packaged yet — see the comment at the
-   top of that file), and Niri's actual keybindings/layout live in the stow-managed
-   `~/.dotfiles` repo, which won't exist on the fresh machine until you copy/clone it over. Niri
-   will still start with sane defaults either way — this just means the "final" look/bindings
-   aren't there until you do that by hand.
+5. **`~/.dotfiles` and the wallpapers are not part of this repo.** The Neovim and Vim configs are
+   `mkOutOfStoreSymlink` links into `~/.dotfiles` (`home/home.nix`), so clone that repo to
+   `~/.dotfiles` after the first login, otherwise `nvim`/`vim` start without your config.
+   wpaperd reads `~/Pictures/Wallpapers`; until that directory exists the desktop shows the plain
+   background color (create it, then `systemctl --user restart wpaperd`). DWL itself — bindings,
+   bar, lock screen, launcher — is fully defined in `home/dwl/`, nothing to copy for it.
 
 None of this blocks the install — it's just the list of things to not forget mid-process.
 
@@ -206,7 +207,7 @@ gdisk /dev/nvme0n1
 mkfs.fat -F32 -n EFI /dev/nvme0n1p1
 mkfs.btrfs -L nixos /dev/nvme0n1p2
 
-# Recommended: carve subvolumes now (README.md flagged the old Arch install
+# Recommended: carve subvolumes now (docs/arch-migration-audit.md flagged the old Arch install
 # as a flat single-subvolume btrfs — fix that here while you can)
 mount /dev/nvme0n1p2 /mnt
 btrfs subvolume create /mnt/@
@@ -233,7 +234,7 @@ mount /dev/nvme0n1p1 /mnt/boot/efi
 
 ```bash
 # --- Option B: declarative partitioning with disko instead of the manual steps above ---
-# Write hosts/system/disko.nix (see README.md section 5 for where it slots into the repo),
+# Write hosts/system/disko.nix (see docs/arch-migration-audit.md section 5 for where it slots into the repo),
 # describing the same @ / @home / @nix / @snapshots layout, then:
 nix --extra-experimental-features "nix-command flakes" run github:nix-community/disko -- \
   --mode destroy,format,mount ./hosts/system/disko.nix
@@ -360,7 +361,8 @@ see 0.1 item 4 and `modules/hardware/nvidia.nix` for what that entry does.
 
 Once installed, `/etc/nixos` should **be** this git repo (or a symlink to wherever you keep it
 checked out, e.g. `~/nix-os`) — treat it as the single source of truth and commit changes to
-it like any other code.
+it like any other code. On this machine `/etc/nixos` is the checkout itself, owned by
+`nellaror`: editing and `git` need no sudo, only `nixos-rebuild switch`/`test` do.
 
 ### 2.1 Daily commands
 
@@ -424,7 +426,7 @@ history always maps a config version to the exact package set it was tested agai
 
 Home Manager (`home/home.nix`, `home/desktop/common.nix`, `home/dwl/default.nix`) already
 generates and owns the config files for: zsh (`.zshrc`), git, delta, fzf, zoxide, bat, lsd,
-htop, tmux, yazi, mako, ghostty, swaylock and fuzzel. dwl itself has no config file: its
+htop, tmux, yazi, fastfetch, mako, ghostty, swaylock and fuzzel. dwl itself has no config file: its
 `config.h` is compiled in. If `~/.dotfiles` (the Arch-era stow setup) still has packages for any
 of those same programs, `stow` will refuse to lay its symlinks over Home Manager's generated
 files rather than silently clobbering them — drop those entries from the dotfiles side instead
