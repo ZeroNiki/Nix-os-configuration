@@ -118,6 +118,46 @@
     shellWrapperName = "y";
   };
 
+  # Minimal fastfetch: small NixOS logo, a handful of lowercase keys,
+  # ANSI colors, so the terminal theme (Everforest) paints them.
+  programs.fastfetch = {
+    enable = true;
+    settings = {
+      logo = {
+        source = "nixos_small";
+        color = {
+          "1" = "green";
+          "2" = "green";
+        };
+        padding = {
+          top = 1;
+          right = 3;
+        };
+      };
+      display = {
+        separator = "  ";
+        key.width = 8;
+        color = {
+          keys = "green";
+          title = "green";
+        };
+      };
+      modules = [
+        "title"
+        { type = "os"; key = "os"; }
+        { type = "kernel"; key = "kernel"; }
+        { type = "uptime"; key = "uptime"; }
+        { type = "packages"; key = "pkgs"; }
+        { type = "wm"; key = "wm"; }
+        { type = "terminal"; key = "term"; }
+        { type = "shell"; key = "shell"; }
+        { type = "memory"; key = "memory"; }
+        "break"
+        { type = "colors"; symbol = "circle"; }
+      ];
+    };
+  };
+
   # --- Neovim / Vim configs from ~/.dotfiles ---
   # Out-of-store symlinks so they stay writable: lazy.nvim rewrites
   # lazy-lock.json, which a read-only /nix/store copy would not allow.
@@ -188,7 +228,6 @@
     vagrant
 
     cpufetch
-    fastfetch
 
     # --- GUI: work / study (README.md section 3) ---
     firefox
@@ -210,7 +249,7 @@
   # --- Dotfiles ---
   # Home Manager generates and owns the configs of the programs enabled here,
   # in home/desktop/common.nix and in home/dwl/default.nix: zsh (.zshrc),
-  # git, delta, fzf, zoxide, bat, lsd, htop, tmux, yazi, mako, ghostty,
+  # git, delta, fzf, zoxide, bat, lsd, htop, tmux, yazi, fastfetch, mako, ghostty,
   # swaylock and fuzzel. dwl has no config file, its config.h is compiled in.
   # Only nvim and vim come from ~/.dotfiles, as mkOutOfStoreSymlink links
   # (see above), so they stay editable in place. Don't `stow` any of the

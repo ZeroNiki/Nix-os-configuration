@@ -279,11 +279,11 @@ in
       show-failed-attempts = true;
 
       color = c.bg;
-      inside-color = "${c.bg}cc";
-      inside-clear-color = "${c.bg}cc";
-      inside-ver-color = "${c.bg}cc";
-      inside-wrong-color = "${c.bg}cc";
-      inside-caps-lock-color = "${c.bg}cc";
+      inside-color = c.bg;
+      inside-clear-color = c.bg;
+      inside-ver-color = c.bg;
+      inside-wrong-color = c.bg;
+      inside-caps-lock-color = c.bg;
 
       ring-color = c.bgAlt;
       ring-clear-color = c.dim;
@@ -323,7 +323,7 @@ in
         inner-pad = 6;
       };
       colors = {
-        background = "${c.bg}f2";
+        background = "${c.bg}ff";
         text = "${c.fg}ff";
         prompt = "${c.accent}ff";
         placeholder = "${c.dim}ff";

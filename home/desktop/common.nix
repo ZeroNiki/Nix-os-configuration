@@ -39,7 +39,6 @@ in
       font-family = "JetBrainsMono Nerd Font";
       font-size = 18;
       font-style = "Regular";
-      background-opacity = 0.8;
 
       window-padding-x = 12;
       window-padding-y = 12;
