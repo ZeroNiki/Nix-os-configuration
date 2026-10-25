@@ -242,7 +242,9 @@
     # --- Gaming: user-level helpers (system-wide bits live in configuration.nix) ---
     protontricks
     mangohud
-    prismlauncher
+    (prismlauncher.override {
+      jdks = [ jdk25 jdk21 jdk17 jdk8 ];
+    })
   ];
 
   xdg.enable = true;
