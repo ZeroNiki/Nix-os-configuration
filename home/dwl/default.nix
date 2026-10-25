@@ -30,17 +30,32 @@ let
     ];
   });
 
+  # Connected outputs other than the laptop panel, one per line (card2-HDMI-A-2).
+  # Plain sysfs reads, so `brightness` and the bar can afford it on every call.
+  drmExternals = ''
+    externals() {
+      local s n
+      for s in /sys/class/drm/card*-*/status; do
+        [ -r "$s" ] && [ "$(<"$s")" = connected ] || continue
+        n=''${s%/status}
+        n=''${n##*/}
+        case $n in *-eDP-* | *-LVDS-* | *-DSI-*) ;; *) echo "$n" ;; esac
+      done
+    }
+  '';
+
   # Right side of the bar: keyboard layout, network, Bluetooth, volume,
-  # battery, clock. Redraws every 10s, or immediately on SIGUSR1: from
-  # `dwl-status refresh` (the volume keys in config.h) and from dwl itself on
+  # brightness, battery, clock. Redraws every 10s, or immediately on SIGUSR1: from
+  # `dwl-status refresh` (the volume and brightness keys in config.h) and from dwl itself on
   # a layout switch (patches/kblayout-local.patch). Clicking the network
   # block opens nmtui, the Bluetooth one blueman-manager.
   dwl-status = pkgs.writeShellApplication {
     name = "dwl-status";
-    runtimeInputs = with pkgs; [ coreutils gawk gnused wireplumber networkmanager bluez ];
+    runtimeInputs = with pkgs; [ coreutils gawk gnused wireplumber networkmanager bluez brightnessctl ];
     text = ''
       pidfile="''${XDG_RUNTIME_DIR:-/tmp}/dwl-status.pid"
       kbfile="''${XDG_RUNTIME_DIR:-/tmp}/dwl-kblayout"
+      extfile="''${XDG_RUNTIME_DIR:-/tmp}/brightness/ext"
 
       if [ "''${1:-}" = refresh ]; then
         kill -USR1 "$(cat "$pidfile" 2>/dev/null)" 2>/dev/null || true
@@ -122,6 +137,20 @@ let
         fi
       }
 
+      ${drmExternals}
+
+      # laptop backlight, plus the external monitor's value as `brightness`
+      # last set it over DDC: asking the monitor takes ddcutil far too long
+      backlight() {
+        local out pct
+        out=$(brightnessctl -m -c backlight 2>/dev/null) || return 0
+        IFS=, read -r _ _ _ pct _ <<<"$out"
+        printf '%s%s' "$(icon 󰃠)" "$pct"
+        if [ -r "$extfile" ] && [ -n "$(externals)" ]; then
+          printf ' %s%s%%' "$(icon 󰍹)" "$(<"$extfile")"
+        fi
+      }
+
       battery() {
         local bat=/sys/class/power_supply/BAT0 cap status
         local levels=(󰁺 󰁺 󰁻 󰁼 󰁽 󰁾 󰁿 󰂀 󰂁 󰂂 󰁹)
@@ -143,7 +172,8 @@ let
       trap 'signalled=1' USR1
 
       # network and Bluetooth (nmcli, bluetoothctl: the slow ones) only every
-      # 10s, a redraw on SIGUSR1 reuses them so EN/RU and volume show at once
+      # 10s, a redraw on SIGUSR1 reuses them so EN/RU, volume and brightness
+      # show at once
       last=-10 net="" bt=""
       while :; do
         signalled=0
@@ -156,7 +186,7 @@ let
         fi
 
         line=""
-        for block in "$(kblayout)" "$net" "$bt" "$(volume)" "$(battery)" "$(date '+%a %d %b  %H:%M')"; do
+        for block in "$(kblayout)" "$net" "$bt" "$(volume)" "$(backlight)" "$(battery)" "$(date '+%a %d %b  %H:%M')"; do
           if [ -n "$block" ]; then line+="''${line:+    }$block"; fi
         done
         printf '%s\n' "$line"
@@ -167,6 +197,151 @@ let
         if ((!signalled)); then wait "$sleep_pid" || true; fi
         kill "$sleep_pid" 2>/dev/null || true
       done
+    '';
+  };
+
+  # `brightness [ext] up|down|set N` (the brightness keys in config.h): the
+  # laptop backlight with brightnessctl, at once, and every external monitor
+  # over DDC/CI with ddcutil, in the background (hundreds of ms per call).
+  # `ext` leaves the laptop alone; `brightness detect` forgets the cached
+  # monitor list, e.g. after turning DDC/CI on in the monitor's menu.
+  #
+  # Key presses only add their step to $state/pending; one worker at a time
+  # (flock -n) takes the sum and sets the final value, so holding the key
+  # never queues up ddcutil runs. Monitor buses come from `ddcutil detect`,
+  # cached per set of connected outputs, so plugging a monitor in or out
+  # (kanshi or not) re-detects on the next press. Without an external
+  # output ddcutil never runs; without a working DDC it fails silently.
+  brightness = pkgs.writeShellApplication {
+    name = "brightness";
+    runtimeInputs = with pkgs; [ coreutils gawk util-linux brightnessctl ddcutil dwl-status ];
+    text = ''
+      state="''${XDG_RUNTIME_DIR:-/tmp}/brightness"
+      mkdir -p "$state"
+      step=5
+      # add --sleep-multiplier=2 if a monitor drops commands (seen on NVIDIA)
+      ddc=(ddcutil)
+
+      usage() {
+        echo "usage: brightness [ext] up|down|set PERCENT | brightness detect" >&2
+        exit 2
+      }
+
+      ${drmExternals}
+
+      # brightnessctl value (5%+, 5%-, 40%), never below 1% so it doesn't go black
+      laptop() {
+        local max
+        max=$(brightnessctl -c backlight max 2>/dev/null) || return 0
+        brightnessctl -q -c backlight --min-value=$((max >= 100 ? max / 100 : 1)) set "$1" || true
+      }
+
+      # $state/pending is "ABS REL": a percentage from `set` (- if none) and
+      # the steps added since; queue adds one press, take empties it
+      queue() {
+        (
+          flock 8
+          local abs=- rel=0
+          if [ -r "$state/pending" ]; then read -r abs rel <"$state/pending"; fi
+          if [ "$1" != - ]; then abs=$1 rel=0; fi
+          echo "$abs $((rel + $2))" >"$state/pending"
+        ) 8>"$state/pending.lock"
+      }
+      take() {
+        (
+          flock 8
+          cat "$state/pending" 2>/dev/null || true
+          rm -f "$state/pending"
+        ) 8>"$state/pending.lock"
+      }
+
+      # I2C bus numbers of the monitors that answer DDC, one per line
+      buses() {
+        local fp
+        fp=$(externals | tr '\n' ' ')
+        if [ "$(head -n1 "$state/displays" 2>/dev/null)" != "$fp" ]; then
+          {
+            echo "$fp"
+            "''${ddc[@]}" detect --terse 2>/dev/null |
+              awk '/^Display /{ok=1} /^Invalid display/{ok=0} ok && /I2C bus:/{sub(/.*\/dev\/i2c-/, ""); print}' || true
+          } >"$state/displays.tmp"
+          mv -f "$state/displays.tmp" "$state/displays"
+        fi
+        tail -n +2 "$state/displays"
+      }
+
+      # one pending change onto every monitor; now/top (current raw value,
+      # max) are the worker's, so getvcp runs once per monitor per burst
+      apply() {
+        local abs rel bus out cur max pct shown=""
+        read -r abs rel < <(take) || return 0
+        for bus in $(buses); do
+          if [ -z "''${now[$bus]:-}" ]; then
+            # "VCP 10 C 50 100"
+            if out=$("''${ddc[@]}" --bus "$bus" --skip-ddc-checks getvcp 10 --brief 2>/dev/null) &&
+              read -r _ _ _ cur max <<<"$out" && ((max > 0)); then
+              now[$bus]=$cur top[$bus]=$max
+            else
+              rm -f "$state/displays" # gone or DDC off: detect again next time
+              continue
+            fi
+          fi
+          if [ "$abs" != - ]; then pct=$abs; else pct=$(((now[$bus] * 100 + top[$bus] / 2) / top[$bus])); fi
+          pct=$((pct + rel))
+          pct=$((pct < 0 ? 0 : pct > 100 ? 100 : pct))
+          cur=$((pct * top[$bus] / 100))
+          if ((cur == now[$bus])); then
+            shown=''${shown:-$pct} # already there, e.g. more presses at 100%
+          elif "''${ddc[@]}" --bus "$bus" --skip-ddc-checks --noverify setvcp 10 "$cur" >/dev/null 2>&1; then
+            now[$bus]=$cur
+            shown=''${shown:-$pct}
+          else
+            unset "now[$bus]"
+            rm -f "$state/displays"
+          fi
+        done
+        if [ -n "$shown" ]; then echo "$shown" >"$state/ext"; else rm -f "$state/ext"; fi
+        dwl-status refresh
+      }
+
+      worker() {
+        local -A now=() top=()
+        while :; do
+          (
+            flock -n 9 || exit 1 # another worker is on it and will see our change
+            while [ -s "$state/pending" ]; do apply; done
+          ) 9>"$state/worker.lock" || return 0
+          # a press that came in while the lock was still held left its change
+          # in pending and gave up on the lock: it's ours
+          [ -s "$state/pending" ] || return 0
+        done
+      }
+
+      target=all
+      if [ "''${1:-}" = ext ]; then
+        target=ext
+        shift
+      fi
+      case ''${1:-} in
+        up) arg=$step%+ abs=- rel=$step ;;
+        down) arg=$step%- abs=- rel=-$step ;;
+        set)
+          if ! [[ ''${2:-} =~ ^[0-9]+$ ]] || ((10#$2 > 100)); then usage; fi
+          arg=$((10#$2))% abs=$((10#$2)) rel=0
+          ;;
+        detect)
+          rm -f "$state/displays" "$state/ext"
+          exit 0
+          ;;
+        *) usage ;;
+      esac
+
+      if [ "$target" = all ]; then laptop "$arg"; fi
+      if [ -n "$(externals)" ]; then
+        queue "$abs" "$rel"
+        worker </dev/null >/dev/null 2>&1 &
+      fi
+      dwl-status refresh
     '';
   };
 
@@ -247,6 +422,8 @@ in
     pkgs.dwlb # also used by the Mod+b binding in config.h
     dwl-status
     dwl-session
+    brightness
+    pkgs.ddcutil # DDC/CI by hand: `ddcutil detect`, `ddcutil getvcp 10`
   ];
 
   # Lock screen (Mod+Shift+l in config.h; PAM entry in modules/desktop/dwl.nix):

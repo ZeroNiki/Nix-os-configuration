@@ -48,6 +48,10 @@
   hardware.bluetooth.powerOnBoot = true;
   services.blueman.enable = true;
 
+  # --- External monitor brightness over DDC/CI (ddcutil, `brightness` in home/dwl) ---
+  # Loads i2c-dev and gives /dev/i2c-* to the "i2c" group (and the local seat).
+  hardware.i2c.enable = true;
+
   # --- Shell ---
   programs.zsh.enable = true;
   users.defaultUserShell = pkgs.zsh;
@@ -93,7 +97,7 @@
   users.users.${username} = {
     isNormalUser = true;
     description = "Nella";
-    extraGroups = [ "wheel" "networkmanager" "docker" "libvirtd" "video" "input" ];
+    extraGroups = [ "wheel" "networkmanager" "docker" "libvirtd" "video" "input" "i2c" ];
     shell = pkgs.zsh;
   };
 

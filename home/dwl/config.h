@@ -159,8 +159,11 @@ static const Key keys[] = {
 	{ 0,                         XKB_KEY_XF86AudioRaiseVolume,  spawn,  STATUS("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+") },
 	{ 0,                         XKB_KEY_XF86AudioLowerVolume,  spawn,  STATUS("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },
 	{ 0,                         XKB_KEY_XF86AudioMute,         spawn,  STATUS("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle") },
-	{ 0,                         XKB_KEY_XF86MonBrightnessUp,   spawn,  SHCMD("brightnessctl -q set 5%+") },
-	{ 0,                         XKB_KEY_XF86MonBrightnessDown, spawn,  SHCMD("brightnessctl -q set 5%-") },
+	/* laptop and external monitors together; Mod+[ / Mod+] only the external ones (DDC/CI) */
+	{ 0,                         XKB_KEY_XF86MonBrightnessUp,   spawn,  SHCMD("brightness up") },
+	{ 0,                         XKB_KEY_XF86MonBrightnessDown, spawn,  SHCMD("brightness down") },
+	{ MODKEY,                    XKB_KEY_bracketright, spawn,           SHCMD("brightness ext up") },
+	{ MODKEY,                    XKB_KEY_bracketleft,  spawn,           SHCMD("brightness ext down") },
 	{ MODKEY,                    XKB_KEY_j,           focusstack,       {.i = +1} },
 	{ MODKEY,                    XKB_KEY_k,           focusstack,       {.i = -1} },
 	{ MODKEY,                    XKB_KEY_i,           incnmaster,       {.i = +1} },

@@ -1,6 +1,6 @@
 # Системная конфигурация хоста `gigabyte-nixos`
 
-`configuration.nix` — основная системная часть (загрузчик, ядро, сеть, звук, Bluetooth, контейнеры и виртуализация, Steam, шрифты, пользователь, тестовая VM), `hardware-configuration.nix` — диски, файловые системы и модули initrd. Графика NVIDIA вынесена в [`modules/hardware`](../../modules/hardware/README.md), рабочий стол — в [`modules/desktop`](../../modules/desktop/README.md).
+`configuration.nix` — основная системная часть (загрузчик, ядро, сеть, звук, Bluetooth, DDC/CI, контейнеры и виртуализация, Steam, шрифты, пользователь, тестовая VM), `hardware-configuration.nix` — диски, файловые системы и модули initrd. Графика NVIDIA вынесена в [`modules/hardware`](../../modules/hardware/README.md), рабочий стол — в [`modules/desktop`](../../modules/desktop/README.md).
 
 Установка и обслуживание — в [`Usage.md`](../../Usage.md), здесь только что и почему настроено.
 
@@ -50,10 +50,19 @@ wpctl set-volume @DEFAULT_AUDIO_SINK@ 50%
 
 `hardware.bluetooth.enable`, `powerOnBoot = true` (адаптер включается при загрузке), `services.blueman.enable` — GUI `blueman-manager`, он же открывается кликом по блоку Bluetooth на панели. Из терминала — `bluetoothctl`.
 
+### Яркость внешнего монитора (DDC/CI)
+
+`hardware.i2c.enable = true` — загружает модуль `i2c-dev` (появляются `/dev/i2c-N`) и через udev отдаёт эти устройства группе `i2c` (создаётся автоматически) и пользователю за локальным сеансом. Пользователь добавлен в группу `i2c`. Через эти шины `ddcutil` меняет яркость внешнего монитора по DDC/CI; клавиши и скрипт `brightness` — в [`home/dwl`](../../home/dwl/README.md#яркость). После первого `switch` нужна перезагрузка (новая группа и модуль ядра).
+
+```bash
+ddcutil detect
+ddcutil getvcp 10
+```
+
 ### Shell и пользователь
 
 - `programs.zsh.enable`, `users.defaultUserShell = pkgs.zsh`; настройка zsh — в [`home`](../../home/README.md#zsh).
-- `users.users.nellaror` (имя приходит из `flake.nix` через `specialArgs.username`): обычный пользователь, группы `wheel`, `networkmanager`, `docker`, `libvirtd`, `video`, `input`, shell — zsh.
+- `users.users.nellaror` (имя приходит из `flake.nix` через `specialArgs.username`): обычный пользователь, группы `wheel`, `networkmanager`, `docker`, `libvirtd`, `video` (подсветка ноутбука через `brightnessctl`), `input`, `i2c` (DDC/CI, см. выше), shell — zsh.
 - **Пароль в конфиге не задан** намеренно, чтобы он не попал в git. После установки его ставят через `passwd` (см. [`Usage.md`](../../Usage.md#15-install), раздел 1.5). Пароль, заданный `passwd`, сохраняется между пересборками.
 - Системные пакеты — только `git` и `vim`, всё пользовательское — в Home Manager.
 - `security.polkit.enable` (агент аутентификации — в [`modules/desktop`](../../modules/desktop/README.md#polkit-агент)).

@@ -1,13 +1,13 @@
 # Рабочий стол DWL
 
-Композитор [dwl](https://codeberg.org/dwl/dwl) 0.9 со всем, что нужно для сессии: `config.h` (клавиши, лейауты, цвета, правила окон, клавиатура и тачпад), патчи (`patches/`), панель `dwlb` со скриптом статуса `dwl-status`, скрипты запуска `dwl-session` / `dwl-startup`, блокировка экрана `swaylock` и лаунчер `fuzzel` (всё в `default.nix`).
+Композитор [dwl](https://codeberg.org/dwl/dwl) 0.9 со всем, что нужно для сессии: `config.h` (клавиши, лейауты, цвета, правила окон, клавиатура и тачпад), патчи (`patches/`), панель `dwlb` со скриптом статуса `dwl-status`, скрипт яркости `brightness`, скрипты запуска `dwl-session` / `dwl-startup`, блокировка экрана `swaylock` и лаунчер `fuzzel` (всё в `default.nix`).
 
 Системная часть (greetd, порталы, polkit, PAM) — в [`modules/desktop`](../../modules/desktop/README.md), уведомления, терминал, обои и мониторы — в [`home/desktop`](../desktop/README.md), цвета — в [`home/theme`](../theme/README.md), патчи по отдельности — в [`patches/README.md`](patches/README.md).
 
 | Файл | Что в нём |
 |---|---|
 | `config.h` | Конфиг dwl. Это C, он компилируется в бинарник: после правки нужна пересборка |
-| `default.nix` | Сборка dwl с патчами, `dwl-status`, `dwl-startup`, `dwl-session`, `dwl-session.target`, `swaylock`, `fuzzel` |
+| `default.nix` | Сборка dwl с патчами, `dwl-status`, `brightness`, `dwl-startup`, `dwl-session`, `dwl-session.target`, `swaylock`, `fuzzel` |
 | `patches/` | Патчи к dwl, порядок наложения задан в `default.nix` |
 
 ## Как запускается сессия
@@ -53,7 +53,7 @@ systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
 
 ## Горячие клавиши
 
-`Win` — клавиша с логотипом (`MODKEY` = `WLR_MODIFIER_LOGO`). ЛКМ / СКМ / ПКМ — левая, средняя, правая кнопки мыши. Таблица собрана из `keys[]` и `buttons[]` в `config.h`: 81 привязка плюс 12 `CHVT`.
+`Win` — клавиша с логотипом (`MODKEY` = `WLR_MODIFIER_LOGO`). ЛКМ / СКМ / ПКМ — левая, средняя, правая кнопки мыши. Таблица собрана из `keys[]` и `buttons[]` в `config.h`: 83 привязки плюс 12 `CHVT`.
 
 Все привязки работают и на русской раскладке: `patches/keys-latin.patch` ищет клавишу всегда в первой (латинской) раскладке. Совпадение проверяется для обычного и Shift-уровня клавиши, поэтому `Win+Shift+Q` записан в `config.h` как `XKB_KEY_q` с `SHIFT`, а не как `XKB_KEY_Q`.
 
@@ -135,9 +135,10 @@ systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
 | `XF86AudioRaiseVolume` | Громкость +5 %, не выше 100 % (`wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+`) |
 | `XF86AudioLowerVolume` | Громкость −5 % |
 | `XF86AudioMute` | Звук вкл/выкл |
-| `XF86MonBrightnessUp` / `XF86MonBrightnessDown` | Яркость ±5 % (`brightnessctl -q set 5%±`) |
+| `XF86MonBrightnessUp` / `XF86MonBrightnessDown` | Яркость ±5 % экрана ноутбука и внешних мониторов вместе (`brightness up` / `brightness down`, см. [Яркость](#яркость)) |
+| `Win+]` / `Win+[` | Яркость ±5 % только внешних мониторов (`brightness ext up` / `brightness ext down`); на русской раскладке это `Ъ` / `Х` |
 
-Клавиши громкости после команды вызывают `dwl-status refresh` (макрос `STATUS()` в `config.h`), поэтому панель показывает новое значение сразу.
+Клавиши громкости после команды вызывают `dwl-status refresh` (макрос `STATUS()` в `config.h`), поэтому панель показывает новое значение сразу. `brightness` вызывает его сам.
 
 В `axes[]` остался пример из `config.def.h`: `Win` + колесо мыши запускает несуществующие `volume-up_EXAMPLE` / `volume-down_EXAMPLE`, то есть ничего не делает.
 
@@ -210,12 +211,13 @@ systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
 | Сеть | Ethernet: `eth`. Wi-Fi: значок уровня сигнала (5 ступеней), SSID (до 12 символов), сигнал в %. Нет подключения: красный значок | `nmcli`; список Wi-Fi из кеша NetworkManager (`--rescan no`), сканирования нет | `ghostty -e nmtui` |
 | Bluetooth | Нет адаптера: блока нет. Выключен: серый значок. Включён без устройств: зелёный значок. Одно устройство: его имя (до 12 символов). Несколько: их число | `bluetoothctl` (с `timeout 2`) | `blueman-manager` |
 | Громкость | `N%`; без звука — серым | `wpctl get-volume @DEFAULT_AUDIO_SINK@` | — |
+| Яркость | `󰃠 N%` экрана ноутбука; при подключённом внешнем мониторе ещё `󰍹 N%` — значение, которое `brightness` выставил ему последним (монитор не опрашивается: ddcutil слишком медленный). Пока яркость монитора не меняли с этого входа, его части нет | `brightnessctl -m -c backlight`, файл `$XDG_RUNTIME_DIR/brightness/ext` | — |
 | Батарея | значок по уровню (шаг 10 %) и `N%`; при зарядке свой значок; 15 % и меньше — красным | `/sys/class/power_supply/BAT0` | — |
 | Часы | `Sun 25 Oct  17:40` (формат `%a %d %b  %H:%M`) | `date` | — |
 
 Пустые блоки пропускаются, между блоками 4 пробела.
 
-**Обновление:** строка перерисовывается раз в 10 секунд и сразу по сигналу `SIGUSR1`. Сигнал шлют `dwl-status refresh` (клавиши громкости, профили kanshi) и сам dwl при смене раскладки. Сеть и Bluetooth (медленные `nmcli` и `bluetoothctl`) опрашиваются не чаще раза в 10 секунд, а при перерисовке по сигналу берутся последние значения, поэтому EN/RU и громкость меняются мгновенно. PID процесса лежит в `$XDG_RUNTIME_DIR/dwl-status.pid`.
+**Обновление:** строка перерисовывается раз в 10 секунд и сразу по сигналу `SIGUSR1`. Сигнал шлют `dwl-status refresh` (клавиши громкости, `brightness`, профили kanshi) и сам dwl при смене раскладки. Сеть и Bluetooth (медленные `nmcli` и `bluetoothctl`) опрашиваются не чаще раза в 10 секунд, а при перерисовке по сигналу берутся последние значения, поэтому EN/RU, громкость и яркость меняются мгновенно. PID процесса лежит в `$XDG_RUNTIME_DIR/dwl-status.pid`.
 
 ```bash
 dwl-status refresh   # перерисовать панель сейчас
@@ -242,8 +244,39 @@ dwl-status refresh   # перерисовать панель сейчас
 ```
 
 ```bash
-        for block in "$(kblayout)" "$net" "$bt" "$(load)" "$(volume)" "$(battery)" "$(date '+%a %d %b  %H:%M')"; do
+        for block in "$(kblayout)" "$net" "$bt" "$(load)" "$(volume)" "$(backlight)" "$(battery)" "$(date '+%a %d %b  %H:%M')"; do
 ```
+
+## Яркость
+
+Скрипт `brightness` (`home/dwl/default.nix`) меняет подсветку экрана ноутбука и внешних мониторов. Лежит рядом с `dwl-status`, потому что вызывается из `config.h` и обновляет панель.
+
+```bash
+brightness up | down        # ±5 % ноутбуку и всем внешним мониторам
+brightness set 40           # 40 % везде
+brightness ext up | down    # только внешние мониторы (Win+] / Win+[)
+brightness ext set 70
+brightness detect           # забыть кеш мониторов (после включения DDC/CI в меню монитора)
+```
+
+- **Ноутбук:** `brightnessctl -c backlight`, сразу. Не ниже 1 % от максимума (`--min-value`), чтобы экран не погас совсем.
+- **Внешние мониторы:** по DDC/CI (VCP-код `10`, яркость) через `ddcutil`, в фоне. Нужны `hardware.i2c.enable` и группа `i2c` ([`hosts/system`](../../hosts/system/README.md#яркость-внешнего-монитора-ddcci)). Если ни один выход, кроме `eDP`/`LVDS`/`DSI`, не подключён (`/sys/class/drm/card*-*/status`), ddcutil не запускается вовсе, задержки нет.
+- **Поиск монитора:** номера шин `/dev/i2c-N` берутся из `ddcutil detect --terse` (только блоки `Display N`, `Invalid display` пропускаются) и кешируются в `$XDG_RUNTIME_DIR/brightness/displays` вместе со списком подключённых разъёмов. Изменился список (монитор подключили, отключили, сменили разъём) — при следующем нажатии `detect` выполняется заново, независимо от kanshi. Не ответил монитор на `getvcp`/`setvcp` — кеш тоже сбрасывается.
+- **Фон и блокировка:** нажатие только дописывает свой шаг в `$XDG_RUNTIME_DIR/brightness/pending` (`ABS REL`: значение из `set` и сумма шагов после него, под коротким `flock`) и запускает фоновый обработчик. Обработчик берёт `flock -n` на `worker.lock`; если он занят, процесс сразу выходит — уже работающий подхватит изменение. Работающий забирает всю сумму, один раз читает текущую яркость (`getvcp 10`), выставляет итоговое значение (`setvcp 10 N --noverify`, без проверки чтением) и повторяет, пока `pending` не пуст. Двадцать быстрых нажатий дают два-три вызова `setvcp`, а не двадцать; одинаковое значение (упёрлись в 100 %) не отправляется.
+- В конце — `dwl-status refresh`: сразу после нажатия (ноутбук) и ещё раз, когда монитор получил новое значение (`brightness/ext`).
+
+**Монитор не реагирует:**
+
+```bash
+ddcutil detect          # виден ли монитор: блок "Display 1" с "I2C bus: /dev/i2c-N"
+ddcutil getvcp 10       # текущая яркость
+ls -l /dev/i2c-*        # группа i2c; если устройств нет — модуль i2c-dev не загружен
+id                      # есть ли группа i2c (после добавления нужен перелогин/перезагрузка)
+```
+
+- `Invalid display` / `DDC communication failed` — в меню самого монитора выключен DDC/CI, включить и выполнить `brightness detect`.
+- Монитор на разъёме NVIDIA (на этом ноутбуке HDMI-A-2 — `card2`, NVIDIA): DDC через проприетарный драйвер работает, но бывает медленным или теряет команды. Проверить `ddcutil getvcp 10 --sleep-multiplier 2`; если помогает — дописать `--sleep-multiplier=2` в `ddc=(ddcutil)` в скрипте. В загрузке `intel-only` NVIDIA выключена, монитор на её разъёмах не работает вовсе.
+- Вывод `ddcutil` при ошибках скрипт скрывает; запускать команды выше вручную.
 
 ## Раскладка EN/RU
 
