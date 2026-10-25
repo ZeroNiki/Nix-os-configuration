@@ -83,7 +83,7 @@ in
     enable = true;
     settings.any = {
       path = "${config.home.homeDirectory}/Pictures/Wallpapers";
-      duration = "5m";
+      duration = "2m";
       sorting = "random";
       mode = "center";
     };
