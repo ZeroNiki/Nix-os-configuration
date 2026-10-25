@@ -48,8 +48,8 @@ in
   };
 
   # --- Polkit authentication agent ---
-  # dwl doesn't reach graphical-session.target, so dwl-startup
-  # (home/dwl/default.nix) starts this unit itself.
+  # Started with graphical-session.target, which dwl-startup brings up
+  # through dwl-session.target (both in home/dwl/default.nix).
   security.polkit.enable = true;
   systemd.user.services.polkit-agent = {
     description = "Polkit authentication agent";

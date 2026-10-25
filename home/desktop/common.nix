@@ -64,15 +64,77 @@ in
     };
   };
 
-  # --- Clipboard, screenshots, brightness ---
-  # Wayland utilities called from home/dwl/config.h (README.md section 4).
-  # The clipboard history is fed by `wl-paste --watch cliphist store` in
-  # dwl-startup (home/dwl/default.nix); cliphist here is for `cliphist list`.
+  # The services below are WantedBy graphical-session.target, which
+  # dwl-session.target (home/dwl/default.nix) pulls in at login.
+
+  # --- Clipboard history ---
+  # `wl-paste --watch cliphist store` as a user service (plus a second one
+  # for images); also puts cliphist itself in PATH for `cliphist list`.
+  services.cliphist.enable = true;
+
+  # --- Wallpaper ---
+  # A random picture from ~/Pictures/Wallpapers, a new one every 5 minutes,
+  # picked separately for each monitor, including ones plugged in later.
+  # "center" zooms the picture to cover the screen and crops what sticks out,
+  # without stretching. wpaperd doesn't fail without pictures: with an empty
+  # directory it warns and watches it for new files; if the directory is
+  # missing it logs an error and runs with no wallpaper (dwl's rootcolor
+  # shows through) until `systemctl --user restart wpaperd`.
+  services.wpaperd = {
+    enable = true;
+    settings.any = {
+      path = "${config.home.homeDirectory}/Pictures/Wallpapers";
+      duration = "5m";
+      sorting = "random";
+      mode = "center";
+    };
+  };
+
+  # --- Monitors ---
+  # dwl alone already places a new monitor (monrules in home/dwl/config.h);
+  # kanshi puts the external one to the right of the laptop at its preferred
+  # (native) mode, 1440p at scale 1.25, i.e. 2048x1152 logical pixels.
+  # "*" is any other output, whatever connector it is on (see `wlr-randr`).
+  services.kanshi = {
+    enable = true;
+    settings = [
+      {
+        profile.name = "laptop";
+        profile.outputs = [
+          {
+            criteria = "eDP-1";
+            status = "enable";
+            position = "0,0";
+          }
+        ];
+      }
+      {
+        profile.name = "external";
+        profile.outputs = [
+          {
+            criteria = "eDP-1";
+            status = "enable";
+            position = "0,0";
+          }
+          {
+            criteria = "*";
+            status = "enable";
+            position = "1920,0";
+            scale = 1.25;
+          }
+        ];
+      }
+    ];
+  };
+
+  # --- Screenshots, brightness, outputs ---
+  # Wayland utilities called from home/dwl/config.h (README.md section 4);
+  # wlr-randr lists the outputs (names, modes, scale) for the kanshi profiles.
   home.packages = with pkgs; [
     grim
     slurp
     wl-clipboard
-    cliphist
     brightnessctl
+    wlr-randr
   ];
 }

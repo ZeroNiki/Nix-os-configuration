@@ -411,8 +411,8 @@ sudo nixos-rebuild switch --rollback
 | Enable/disable a system service (docker, libvirt, bluetooth...) | `hosts/system/configuration.nix` |
 | DWL keybindings, layouts, gaps, window rules, border colors | `home/dwl/config.h` (compiled into dwl, rebuild after each edit) |
 | DWL patches | `home/dwl/patches/` + the `patches` list in `home/dwl/default.nix` |
-| Bar (dwlb), status line, autostart (`dwl-startup`), wallpaper, launcher (fuzzel), lock screen (swaylock) | `home/dwl/default.nix` |
-| Notifications (mako), terminal (ghostty), screenshot/clipboard/brightness utilities | `home/desktop/common.nix` |
+| Bar (dwlb), status line, autostart (`dwl-startup`, `dwl-session.target`), launcher (fuzzel), lock screen (swaylock) | `home/dwl/default.nix` |
+| Notifications (mako), terminal (ghostty), wallpaper slideshow (wpaperd), monitor profiles (kanshi), clipboard history (cliphist), screenshot/brightness utilities | `home/desktop/common.nix` |
 | Color palette (Everforest) | `home/theme/everforest.nix`; `config.h` repeats the colors it needs by hand |
 | Greeter (greetd + tuigreet), portals, polkit agent, Wayland session variables | `modules/desktop/dwl.nix` |
 

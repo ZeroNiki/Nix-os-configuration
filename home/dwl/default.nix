@@ -86,19 +86,14 @@ let
   # final `exec dwlb` reads, so everything else goes to the background first.
   dwl-startup = pkgs.writeShellApplication {
     name = "dwl-startup";
-    runtimeInputs = with pkgs; [ dwlb dwl-status dbus wl-clipboard cliphist swaybg ];
+    runtimeInputs = with pkgs; [ dwlb dwl-status dbus ];
     text = ''
       # Hand the session env to D-Bus/systemd activated services (portals,
-      # mako, polkit agent); dwl doesn't start graphical-session.target, so
-      # the polkit agent is started here by hand.
+      # mako), then start the user services of the session (polkit agent,
+      # cliphist, wpaperd, kanshi) through dwl-session.target below.
       dbus-update-activation-environment --systemd \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
-      systemctl --user start polkit-agent.service || true
-
-      wl-paste --watch cliphist store &
-
-      # plain background color as the wallpaper
-      swaybg -c '#${c.bg}' &
+      systemctl --user start dwl-session.target || true
 
       # the status client needs the bar's socket, give dwlb a moment to start
       { sleep 1; dwl-status | dwlb -status-stdin all; } &
@@ -131,11 +126,34 @@ let
       mkdir -p "$(dirname "$log")"
       if [ -f "$log" ]; then mv -f "$log" "$log.old"; fi
 
-      exec dwl -s dwl-startup 2>"$log"
+      # not exec'd: once dwl exits, stop the session's user services, so they
+      # don't linger with a dead WAYLAND_DISPLAY until the next login
+      status=0
+      dwl -s dwl-startup 2>"$log" || status=$?
+      systemctl --user stop dwl-session.target || true
+      systemctl --user unset-environment WAYLAND_DISPLAY DISPLAY || true
+      exit "$status"
     '';
   };
 in
 {
+  # dwl has no systemd integration of its own, this is the same setup as
+  # Home Manager's sway-session.target: dwl-startup starts it, which pulls
+  # in graphical-session.target and with it every user service WantedBy
+  # that (polkit agent from modules/desktop/dwl.nix, cliphist, wpaperd and
+  # kanshi from home/desktop/common.nix). dwl-session stops it after dwl
+  # exits; graphical-session.target is StopWhenUnneeded and those services
+  # are PartOf it, so they all go down with it.
+  systemd.user.targets.dwl-session = {
+    Unit = {
+      Description = "dwl compositor session";
+      Documentation = [ "man:systemd.special(7)" ];
+      BindsTo = [ "graphical-session.target" ];
+      Wants = [ "graphical-session-pre.target" ];
+      After = [ "graphical-session-pre.target" ];
+    };
+  };
+
   home.packages = [
     dwl
     pkgs.dwlb # also used by the Mod+b binding in config.h
