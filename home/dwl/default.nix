@@ -25,16 +25,22 @@ let
       # then our changes to it (gappx, Mod+h/l); settings in config.h
       ./patches/btrtile.patch
       ./patches/btrtile-local.patch
+      # EN/RU for dwl-status on every layout switch, settings in config.h
+      ./patches/kblayout-local.patch
     ];
   });
 
-  # Right side of the bar: volume, battery, clock. Redraws every 10s, or
-  # immediately on `dwl-status refresh` (used by the volume keys in config.h).
+  # Right side of the bar: keyboard layout, network, Bluetooth, volume,
+  # battery, clock. Redraws every 10s, or immediately on SIGUSR1: from
+  # `dwl-status refresh` (the volume keys in config.h) and from dwl itself on
+  # a layout switch (patches/kblayout-local.patch). Clicking the network
+  # block opens nmtui, the Bluetooth one blueman-manager.
   dwl-status = pkgs.writeShellApplication {
     name = "dwl-status";
-    runtimeInputs = with pkgs; [ coreutils gawk wireplumber ];
+    runtimeInputs = with pkgs; [ coreutils gawk gnused wireplumber networkmanager bluez ];
     text = ''
       pidfile="''${XDG_RUNTIME_DIR:-/tmp}/dwl-status.pid"
+      kbfile="''${XDG_RUNTIME_DIR:-/tmp}/dwl-kblayout"
 
       if [ "''${1:-}" = refresh ]; then
         kill -USR1 "$(cat "$pidfile" 2>/dev/null)" 2>/dev/null || true
@@ -42,6 +48,68 @@ let
       fi
 
       icon() { printf '^fg(${c.accent})%s^fg() ' "$1"; }
+
+      # at most $2 characters, '^' escaped for dwlb
+      shorten() {
+        local s=$1
+        if ((''${#s} > $2)); then s="''${s:0:$2-1}…"; fi
+        printf '%s' "''${s//^/^^}"
+      }
+
+      # EN/RU, written by dwl (patches/kblayout-local.patch)
+      kblayout() {
+        [ -r "$kbfile" ] || return 0
+        printf '%s%s' "$(icon 󰌌)" "$(<"$kbfile")"
+      }
+
+      # Ethernet wins over Wi-Fi; the Wi-Fi list comes from NetworkManager's
+      # cache (--rescan no), so this never triggers a scan
+      network() {
+        local devices type state line signal ssid wifi=0 eth=0
+        local levels=(󰤯 󰤟 󰤢 󰤥 󰤨)
+        devices=$(nmcli -t -f TYPE,STATE device 2>/dev/null) || return 0
+        while IFS=: read -r type state; do
+          [ "$state" = connected ] || continue
+          case $type in
+            ethernet) eth=1 ;;
+            wifi) wifi=1 ;;
+          esac
+        done <<<"$devices"
+
+        if ((eth)); then
+          printf '%seth' "$(icon 󰈀)"
+        elif ((wifi)); then
+          line=$(nmcli -t -f ACTIVE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null |
+            grep -m1 '^yes:') || line=
+          signal=''${line#yes:}
+          signal=''${signal%%:*}
+          [[ $signal =~ ^[0-9]+$ ]] || signal=0
+          ssid=''${line#yes:*:}
+          ssid=''${ssid//\\:/:} # nmcli -t escapes ':' in the SSID
+          printf '%s%s %s%%' "$(icon "''${levels[signal * 4 / 100]}")" "$(shorten "''${ssid:-wifi}" 12)" "$signal"
+        else
+          printf '^fg(${c.urgent})󰤮^fg()'
+        fi
+      }
+
+      # nothing without an adapter; bluetoothctl waits forever for a missing
+      # bluetoothd, hence the timeouts
+      bluetooth() {
+        local show names
+        show=$(timeout 2 bluetoothctl show 2>/dev/null) || return 0
+        [[ $show == Controller* ]] || return 0
+        if [[ $show != *"Powered: yes"* ]]; then
+          printf '^fg(${c.dim})󰂲^fg()'
+          return 0
+        fi
+        mapfile -t names < <(timeout 2 bluetoothctl devices Connected 2>/dev/null |
+          sed -n 's/^Device [0-9A-Fa-f:]\{17\} //p')
+        case ''${#names[@]} in
+          0) printf '^fg(${c.accent})󰂯^fg()' ;;
+          1) printf '%s%s' "$(icon 󰂱)" "$(shorten "''${names[0]}" 12)" ;;
+          *) printf '%s%s' "$(icon 󰂱)" "''${#names[@]}" ;;
+        esac
+      }
 
       volume() {
         local out vol
@@ -71,13 +139,33 @@ let
 
       echo $$ >"$pidfile"
       trap 'rm -f "$pidfile"' EXIT
-      trap ':' USR1
+      signalled=0
+      trap 'signalled=1' USR1
 
+      # network and Bluetooth (nmcli, bluetoothctl: the slow ones) only every
+      # 10s, a redraw on SIGUSR1 reuses them so EN/RU and volume show at once
+      last=-10 net="" bt=""
       while :; do
-        printf '%s    %s    %s\n' "$(volume)" "$(battery)" "$(date '+%a %d %b  %H:%M')"
+        signalled=0
+        if ((SECONDS - last >= 10)); then
+          last=$SECONDS
+          net=$(network)
+          net=''${net:+^lm(ghostty -e nmtui)$net^lm()}
+          bt=$(bluetooth)
+          bt=''${bt:+^lm(blueman-manager)$bt^lm()}
+        fi
+
+        line=""
+        for block in "$(kblayout)" "$net" "$bt" "$(volume)" "$(battery)" "$(date '+%a %d %b  %H:%M')"; do
+          if [ -n "$block" ]; then line+="''${line:+    }$block"; fi
+        done
+        printf '%s\n' "$line"
+
         sleep 10 &
         sleep_pid=$!
-        wait "$sleep_pid" || kill "$sleep_pid" 2>/dev/null || true
+        # a SIGUSR1 during the redraw above: don't wait for the next tick
+        if ((!signalled)); then wait "$sleep_pid" || true; fi
+        kill "$sleep_pid" 2>/dev/null || true
       done
     '';
   };

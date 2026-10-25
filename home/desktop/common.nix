@@ -68,7 +68,7 @@ in
   # dwl-session.target (home/dwl/default.nix) pulls in at login.
 
   # --- Clipboard history ---
-  # `wl-paste --watch cliphist store` as a user service (plus a second one
+  # wl-paste in watch mode feeding cliphist, as a user service (plus one
   # for images); also puts cliphist itself in PATH for `cliphist list`.
   services.cliphist.enable = true;
 
@@ -95,11 +95,14 @@ in
   # kanshi puts the external one to the right of the laptop at its preferred
   # (native) mode, 1440p at scale 1.25, i.e. 2048x1152 logical pixels.
   # "*" is any other output, whatever connector it is on (see `wlr-randr`).
+  # dwlb puts a bar on a new output by itself, but its status text only
+  # arrives with dwl-status's next line, so each profile asks for it at once.
   services.kanshi = {
     enable = true;
     settings = [
       {
         profile.name = "laptop";
+        profile.exec = "dwl-status refresh";
         profile.outputs = [
           {
             criteria = "eDP-1";
@@ -110,6 +113,7 @@ in
       }
       {
         profile.name = "external";
+        profile.exec = "dwl-status refresh";
         profile.outputs = [
           {
             criteria = "eDP-1";

@@ -1,0 +1,93 @@
+[local] keyboard layout indicator for the bar (dwl-patches kblayout exists for 0.7/0.8 only and also switches the layout per client, which is not wanted here). Whenever the active xkb group changes, dwl writes kblayout_names[group] to $XDG_RUNTIME_DIR/kblayout_file and sends SIGUSR1 to the pid in $XDG_RUNTIME_DIR/kblayout_pidfile if it is still kblayout_comm (config.h)
+
+diff --git a/dwl.c b/dwl.c
+index 30d8bd1..58c4a88 100644
+--- a/dwl.c
++++ b/dwl.c
+@@ -317,6 +317,7 @@ static void gpureset(struct wl_listener *listener, void *data);
+ static void handlesig(int signo);
+ static void incnmaster(const Arg *arg);
+ static void inputdevice(struct wl_listener *listener, void *data);
++static void kblayout(KeyboardGroup *group);
+ static const Key *keybinding(uint32_t mods, xkb_keysym_t sym);
+ static void keypress(struct wl_listener *listener, void *data);
+ static void keypressmod(struct wl_listener *listener, void *data);
+@@ -432,6 +433,7 @@ static struct wlr_session_lock_v1 *cur_lock;
+ 
+ static struct wlr_seat *seat;
+ static KeyboardGroup *kb_group;
++static xkb_layout_index_t kblayout_idx = XKB_LAYOUT_INVALID;
+ static unsigned int cursor_mode;
+ static Client *grabc;
+ static int grabcx, grabcy; /* client-relative */
+@@ -1719,6 +1721,51 @@ incnmaster(const Arg *arg)
+ 	arrange(selmon);
+ }
+ 
++void
++kblayout(KeyboardGroup *group)
++{
++	/* Write kblayout_names[active layout] to $XDG_RUNTIME_DIR/kblayout_file
++	 * and send SIGUSR1 to the bar's status script, whose pid is in
++	 * $XDG_RUNTIME_DIR/kblayout_pidfile, if that pid is still kblayout_comm */
++	xkb_layout_index_t idx = group->wlr_group->keyboard.modifiers.group;
++	const char *dir = getenv("XDG_RUNTIME_DIR"), *name;
++	char path[PATH_MAX], tmp[PATH_MAX + sizeof(".tmp")], comm[64] = "";
++	FILE *f;
++	int pid = 0;
++
++	if (idx == kblayout_idx || !dir)
++		return;
++	kblayout_idx = idx;
++
++	name = idx < LENGTH(kblayout_names) ? kblayout_names[idx]
++		: xkb_keymap_layout_get_name(group->wlr_group->keyboard.keymap, idx);
++	snprintf(path, sizeof(path), "%s/%s", dir, kblayout_file);
++	snprintf(tmp, sizeof(tmp), "%s.tmp", path);
++	if (!(f = fopen(tmp, "w")))
++		return;
++	fprintf(f, "%s\n", name ? name : "?");
++	/* rename: a reader never sees a half-written file */
++	if (fclose(f) || rename(tmp, path))
++		return;
++
++	snprintf(path, sizeof(path), "%s/%s", dir, kblayout_pidfile);
++	if ((f = fopen(path, "r"))) {
++		if (fscanf(f, "%d", &pid) != 1)
++			pid = 0;
++		fclose(f);
++	}
++	if (pid <= 0)
++		return;
++	snprintf(path, sizeof(path), "/proc/%d/comm", pid);
++	if ((f = fopen(path, "r"))) {
++		if (fgets(comm, sizeof(comm), f))
++			comm[strcspn(comm, "\n")] = '\0';
++		fclose(f);
++	}
++	if (!strcmp(comm, kblayout_comm))
++		kill(pid, SIGUSR1);
++}
++
+ void
+ inputdevice(struct wl_listener *listener, void *data)
+ {
+@@ -1837,6 +1884,10 @@ keypressmod(struct wl_listener *listener, void *data)
+ 	/* Send modifiers to the client. */
+ 	wlr_seat_keyboard_notify_modifiers(seat,
+ 			&group->wlr_group->keyboard.modifiers);
++
++	/* a layout switch (grp:... in xkb_rules) comes as a modifiers event */
++	if (group == kb_group)
++		kblayout(group);
+ }
+ 
+ int
+@@ -2890,6 +2941,7 @@ setup(void)
+ 
+ 	kb_group = createkeyboardgroup();
+ 	wl_list_init(&kb_group->destroy.link);
++	kblayout(kb_group); /* the first layout, before any key press */
+ 
+ 	output_mgr = wlr_output_manager_v1_create(dpy);
+ 	wl_signal_add(&output_mgr->events.apply, &output_mgr_apply);

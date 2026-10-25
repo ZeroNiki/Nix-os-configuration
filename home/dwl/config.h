@@ -70,6 +70,15 @@ static const struct xkb_rule_names xkb_rules = {
 	.options = "grp:win_space_toggle",
 };
 
+/* bar's layout indicator (patches/kblayout-local.patch): on every switch the
+ * active layout's name goes to $XDG_RUNTIME_DIR/dwl-kblayout and dwl-status
+ * (home/dwl/default.nix) gets SIGUSR1 through its pidfile, like on
+ * `dwl-status refresh` */
+static const char *kblayout_names[] = { "EN", "RU" }; /* order of .layout above */
+static const char kblayout_file[]    = "dwl-kblayout";
+static const char kblayout_pidfile[] = "dwl-status.pid";
+static const char kblayout_comm[]    = "dwl-status";
+
 static const int repeat_rate = 25;
 static const int repeat_delay = 600;
 
