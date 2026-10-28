@@ -8,6 +8,8 @@ in
   # terminal, Wayland utilities. dwl itself lives in home/dwl/default.nix.
 
   # --- Notifications ---
+  # Mod+n closes the newest one, Mod+Shift+n toggles do-not-disturb (bar
+  # shows 󰂛 meanwhile): everything is hidden except critical notifications.
   services.mako = {
     enable = true;
     settings = {
@@ -20,6 +22,9 @@ in
       "urgency=critical" = {
         border-color = "#${theme.red}";
       };
+      # sections are sorted by name, the second one comes later and wins
+      "mode=do-not-disturb".invisible = 1;
+      "mode=do-not-disturb urgency=critical".invisible = 0;
     };
   };
 

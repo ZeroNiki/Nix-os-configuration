@@ -51,7 +51,7 @@ let
   # block opens nmtui, the Bluetooth one blueman-manager.
   dwl-status = pkgs.writeShellApplication {
     name = "dwl-status";
-    runtimeInputs = with pkgs; [ coreutils gawk gnused wireplumber networkmanager bluez brightnessctl ];
+    runtimeInputs = with pkgs; [ coreutils gawk gnused wireplumber networkmanager bluez brightnessctl mako ];
     text = ''
       pidfile="''${XDG_RUNTIME_DIR:-/tmp}/dwl-status.pid"
       kbfile="''${XDG_RUNTIME_DIR:-/tmp}/dwl-kblayout"
@@ -69,6 +69,13 @@ let
         local s=$1
         if ((''${#s} > $2)); then s="''${s:0:$2-1}…"; fi
         printf '%s' "''${s//^/^^}"
+      }
+
+      # mako's do-not-disturb mode (Mod+Shift+n), nothing while it's off
+      dnd() {
+        if [[ $(makoctl mode 2>/dev/null) == *do-not-disturb* ]]; then
+          printf '^fg(${c.dim})󰂛^fg()'
+        fi
       }
 
       # EN/RU, written by dwl (patches/kblayout-local.patch)
@@ -186,7 +193,7 @@ let
         fi
 
         line=""
-        for block in "$(kblayout)" "$net" "$bt" "$(volume)" "$(backlight)" "$(battery)" "$(date '+%a %d %b  %H:%M')"; do
+        for block in "$(dnd)" "$(kblayout)" "$net" "$bt" "$(volume)" "$(backlight)" "$(battery)" "$(date '+%a %d %b  %H:%M')"; do
           if [ -n "$block" ]; then line+="''${line:+    }$block"; fi
         done
         printf '%s\n' "$line"

@@ -158,6 +158,11 @@ static const Key keys[] = {
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_s,           spawn,            SHCMD("grim -g \"$(slurp)\" - | wl-copy") },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_l,           spawn,            {.v = lockcmd} },
 	{ MODKEY,                    XKB_KEY_x,           spawn,            {.v = powercmd} },
+	/* clipboard history (cliphist): the pick goes back to the clipboard; Esc keeps it as is */
+	{ MODKEY,                    XKB_KEY_v,           spawn,            SHCMD("s=$(cliphist list | fuzzel --dmenu --prompt 'clip: ') && printf '%s\\n' \"$s\" | cliphist decode | wl-copy") },
+	/* mako: close the newest notification / toggle do-not-disturb (󰂛 in the bar) */
+	{ MODKEY,                    XKB_KEY_n,           spawn,            SHCMD("makoctl dismiss") },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_n,           spawn,            STATUS("makoctl mode -t do-not-disturb >/dev/null") },
 	{ 0,                         XKB_KEY_Print,       spawn,            SHCMD("grim - | wl-copy") },
 	{ 0,                         XKB_KEY_XF86AudioRaiseVolume,  spawn,  STATUS("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+") },
 	{ 0,                         XKB_KEY_XF86AudioLowerVolume,  spawn,  STATUS("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },
