@@ -49,8 +49,10 @@ in
 
   # --- Polkit authentication agent ---
   # Started with graphical-session.target, which dwl-startup brings up
-  # through dwl-session.target (both in home/dwl/default.nix).
-  security.polkit.enable = true;
+  # through dwl-session.target (both in home/dwl/default.nix). polkit-gnome:
+  # a single GTK dialog, GTK is in the closure anyway (the KDE agent pulled
+  # in Qt6 + KDE Frameworks for the same window). security.polkit.enable is
+  # in hosts/system/configuration.nix.
   systemd.user.services.polkit-agent = {
     description = "Polkit authentication agent";
     wantedBy = [ "graphical-session.target" ];
@@ -58,7 +60,7 @@ in
     after = [ "graphical-session.target" ];
     serviceConfig = {
       Type = "simple";
-      ExecStart = "${pkgs.kdePackages.polkit-kde-agent-1}/libexec/polkit-kde-authentication-agent-1";
+      ExecStart = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
       Restart = "on-failure";
       RestartSec = 1;
       TimeoutStopSec = 10;
