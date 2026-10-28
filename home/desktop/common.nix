@@ -159,6 +159,16 @@ in
     ];
   };
 
+  # --- Night light ---
+  # Warmer screen from sunset to sunrise, computed for Tashkent
+  # (time.timeZone in configuration.nix), fading over the twilight.
+  services.wlsunset = {
+    enable = true;
+    latitude = 41.3;
+    longitude = 69.3;
+    temperature.night = 4000;
+  };
+
   # --- Screenshots, brightness, outputs ---
   # Wayland utilities called from home/dwl/config.h (README.md section 4);
   # wlr-randr lists the outputs (names, modes, scale) for the kanshi profiles.
