@@ -103,6 +103,11 @@
     ];
   };
   programs.zoxide.enable = true;
+  # `, cowsay` runs a program from nixpkgs without installing it, and an
+  # unknown command says which package has it. The database is prebuilt
+  # (nix-index-database input in flake.nix), nothing to index locally.
+  programs.nix-index.enable = true;
+  programs.nix-index-database.comma.enable = true;
   programs.bat.enable = true;
   programs.lsd = {
     enable = true;
