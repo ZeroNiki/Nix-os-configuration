@@ -47,8 +47,11 @@ in
       file = "share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
     };
 
+    # TERM is left to the terminal (xterm-ghostty): forcing xterm-256color
+    # turned off undercurl, the kitty keyboard protocol and more in nvim.
+    # Over ssh ghostty copies its terminfo to the host or falls back to
+    # xterm-256color by itself (ssh-terminfo/ssh-env in home/desktop/common.nix).
     sessionVariables = {
-      TERM = "xterm-256color";
       MANPAGER = "less -R";
       MANOPT = "-L ru_RU.UTF-8";
     };
