@@ -1,13 +1,13 @@
 # Рабочий стол DWL
 
-Композитор [dwl](https://codeberg.org/dwl/dwl) 0.9 со всем, что нужно для сессии: `config.h` (клавиши, лейауты, цвета, правила окон, клавиатура и тачпад), патчи (`patches/`), панель `dwlb` со скриптом статуса `dwl-status`, скрипт яркости `brightness`, скрипты запуска `dwl-session` / `dwl-startup`, блокировка экрана `swaylock` и лаунчер `fuzzel` (всё в `default.nix`).
+Композитор [dwl](https://codeberg.org/dwl/dwl) 0.9 со всем, что нужно для сессии: `config.h` (клавиши, лейауты, цвета, правила окон, клавиатура и тачпад), патчи (`patches/`), панель `dwlb` со скриптом статуса `dwl-status`, скрипт яркости `brightness`, power-меню `powermenu`, скрипты запуска `dwl-session` / `dwl-startup`, блокировка экрана `swaylock`, автоблокировка `swayidle` и лаунчер `fuzzel` (всё в `default.nix`).
 
 Системная часть (greetd, порталы, polkit, PAM) — в [`modules/desktop`](../../modules/desktop/README.md), уведомления, терминал, обои и мониторы — в [`home/desktop`](../desktop/README.md), цвета — в [`home/theme`](../theme/README.md), патчи по отдельности — в [`patches/README.md`](patches/README.md).
 
 | Файл | Что в нём |
 |---|---|
 | `config.h` | Конфиг dwl. Это C, он компилируется в бинарник: после правки нужна пересборка |
-| `default.nix` | Сборка dwl с патчами, `dwl-status`, `brightness`, `dwl-startup`, `dwl-session`, `dwl-session.target`, `swaylock`, `fuzzel` |
+| `default.nix` | Сборка dwl с патчами, `dwl-status`, `brightness`, `powermenu`, `dwl-startup`, `dwl-session`, `dwl-session.target`, `swaylock`, `swayidle`, `fuzzel` |
 | `patches/` | Патчи к dwl, порядок наложения задан в `default.nix` |
 
 ## Как запускается сессия
@@ -27,9 +27,11 @@ dwl-startup
   ├─ systemctl --user start dwl-session.target
   │     └─ BindsTo → graphical-session.target, его WantedBy-сервисы:
   │          ├─ polkit-agent.service                       modules/desktop/dwl.nix
+  │          ├─ swayidle.service                           home/dwl/default.nix
   │          ├─ cliphist.service, cliphist-images.service  home/desktop/common.nix
   │          ├─ wpaperd.service                            home/desktop/common.nix
-  │          └─ kanshi.service                             home/desktop/common.nix
+  │          ├─ kanshi.service                             home/desktop/common.nix
+  │          └─ wlsunset.service                           home/desktop/common.nix
   ├─ через 1 с, в фоне: dwl-status | dwlb -status-stdin all
   └─ exec dwlb …                        панель, читает статус dwl из stdin
 ```
@@ -48,7 +50,7 @@ dwl-session
 
 ```bash
 systemctl --user list-dependencies graphical-session.target
-systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
+systemctl --user status dwl-session.target swayidle wpaperd kanshi cliphist polkit-agent
 ```
 
 ## Горячие клавиши
@@ -112,6 +114,7 @@ systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
 |---|---|
 | `Win+Enter` | Терминал: `ghostty --gtk-single-instance=false` |
 | `Win+P` | Лаунчер `fuzzel` |
+| `Win+V` | История буфера обмена (cliphist) в fuzzel: выбранное снова в буфере, `Esc` — ничего не менять |
 | `Win+Shift+S` | Скриншот области: `grim -g "$(slurp)" - \| wl-copy`, результат в буфере обмена |
 | `Print` | Скриншот всех экранов: `grim - \| wl-copy`, результат в буфере обмена |
 
@@ -121,6 +124,9 @@ systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
 |---|---|
 | `Win+B` | Показать / скрыть панель на всех мониторах (`dwlb -toggle-visibility all`) |
 | `Win+Shift+L` | Заблокировать экран (`swaylock -f`) |
+| `Win+X` | Power-меню в fuzzel: lock / suspend / reboot / poweroff (`powermenu`) |
+| `Win+N` | Закрыть верхнее уведомление (`makoctl dismiss`) |
+| `Win+Shift+N` | «Не беспокоить» вкл/выкл (`makoctl mode -t do-not-disturb`), на панели `󰂛` |
 | `Win+Shift+Q` | Выйти из dwl (завершение сессии) |
 | `Ctrl+Alt+Backspace` | То же, выйти из dwl |
 
@@ -135,10 +141,16 @@ systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
 | `XF86AudioRaiseVolume` | Громкость +5 %, не выше 100 % (`wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+`) |
 | `XF86AudioLowerVolume` | Громкость −5 % |
 | `XF86AudioMute` | Звук вкл/выкл |
+| `XF86AudioMicMute` | Микрофон вкл/выкл (`wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle`); выключенный — красный `󰍭` на панели |
+| `XF86AudioPlay` / `XF86AudioPause` | Пауза / воспроизведение (`playerctl play-pause`) |
+| `XF86AudioNext` / `XF86AudioPrev` | Следующий / предыдущий трек |
+| `XF86AudioStop` | Стоп |
 | `XF86MonBrightnessUp` / `XF86MonBrightnessDown` | Яркость ±5 % экрана ноутбука и внешних мониторов вместе (`brightness up` / `brightness down`, см. [Яркость](#яркость)) |
 | `Win+]` / `Win+[` | Яркость ±5 % только внешних мониторов (`brightness ext up` / `brightness ext down`); на русской раскладке это `Ъ` / `Х` |
 
-Клавиши громкости после команды вызывают `dwl-status refresh` (макрос `STATUS()` в `config.h`), поэтому панель показывает новое значение сразу. `brightness` вызывает его сам.
+Клавиши громкости, микрофона и `Win+Shift+N` после команды вызывают `dwl-status refresh` (макрос `STATUS()` в `config.h`), поэтому панель показывает новое значение сразу. `brightness` вызывает его сам.
+
+`playerctl` идёт через `playerctld` — в плеер, активный последним (Spotify, mpv, Firefox), см. [`home/desktop`](../desktop/README.md#плееры-playerctld). Если на клавиатуре ноутбука нет отдельных медиа-клавиш или клавиши микрофона, проверить, что она шлёт, можно `wev` (`, wev`).
 
 В `axes[]` остался пример из `config.def.h`: `Win` + колесо мыши запускает несуществующие `volume-up_EXAMPLE` / `volume-down_EXAMPLE`, то есть ничего не делает.
 
@@ -207,10 +219,11 @@ systemctl --user status dwl-session.target wpaperd kanshi cliphist polkit-agent
 
 | Блок | Что показывает | Откуда берёт | ЛКМ |
 |---|---|---|---|
+| «Не беспокоить» | серый `󰂛`, только пока режим включён | `makoctl mode` | — |
 | Раскладка | `EN` / `RU` | файл `$XDG_RUNTIME_DIR/dwl-kblayout` (пишет dwl) | — |
 | Сеть | Ethernet: `eth`. Wi-Fi: значок уровня сигнала (5 ступеней), SSID (до 12 символов), сигнал в %. Нет подключения: красный значок | `nmcli`; список Wi-Fi из кеша NetworkManager (`--rescan no`), сканирования нет | `ghostty -e nmtui` |
 | Bluetooth | Нет адаптера: блока нет. Выключен: серый значок. Включён без устройств: зелёный значок. Одно устройство: его имя (до 12 символов). Несколько: их число | `bluetoothctl` (с `timeout 2`) | `blueman-manager` |
-| Громкость | `N%`; без звука — серым | `wpctl get-volume @DEFAULT_AUDIO_SINK@` | — |
+| Громкость | `N%`; без звука — серым. Если микрофон выключен, рядом красный `󰍭` | `wpctl get-volume @DEFAULT_AUDIO_SINK@` и `@DEFAULT_AUDIO_SOURCE@` | — |
 | Яркость | `󰃠 N%` экрана ноутбука; при подключённом внешнем мониторе ещё `󰍹 N%` — значение, которое `brightness` выставил ему последним (монитор не опрашивается: ddcutil слишком медленный). Пока яркость монитора не меняли с этого входа, его части нет | `brightnessctl -m -c backlight`, файл `$XDG_RUNTIME_DIR/brightness/ext` | — |
 | Батарея | значок по уровню (шаг 10 %) и `N%`; при зарядке свой значок; 15 % и меньше — красным | `/sys/class/power_supply/BAT0` | — |
 | Часы | `Sun 25 Oct  17:40` (формат `%a %d %b  %H:%M`) | `date` | — |
@@ -382,7 +395,30 @@ wlr-randr --output HDMI-A-2 --pos 1920,0 --mode 2560x1440@144.001999Hz --scale 1
 | красное (`red`) | неверный пароль (текст тоже красный) |
 | жёлтое (`yellow`) | включён Caps Lock |
 
-Автоблокировки по простою нет: `swayidle` или аналог не настроены.
+## Простой и сон
+
+`services.swayidle` (в `default.nix`, стартует с `graphical-session.target`):
+
+| Когда | Что |
+|---|---|
+| 5 минут без ввода | блокировка (`swaylock -f`) |
+| 10 минут без ввода | мониторы выключаются (`wlopm --off '*'`, протокол wlr-output-power-management), любое движение или клавиша включают их |
+| перед сном (`before-sleep`) | блокировка: крышка, `systemctl suspend`, power-меню. `-w` заставляет logind ждать, пока `swaylock -f` заблокирует экран, поэтому ноутбук не просыпается разблокированным |
+| после сна (`after-resume`) | мониторы включаются |
+| `loginctl lock-session` (`lock`) | блокировка |
+
+Если экран уже заблокирован, второй swaylock не запускается (`pgrep -x swaylock`). Видео в mpv и Firefox держит idle inhibitor (dwl его поддерживает), пока оно идёт — таймеры не срабатывают. `wlopm` вызывается через маленький скрипт `screens`, чтобы `'*'` не пришлось экранировать внутри `ExecStart`.
+
+Поменять время — `timeouts` в `services.swayidle`. Временно выключить:
+
+```bash
+systemctl --user stop swayidle    # до следующего входа или start
+journalctl --user -u swayidle
+```
+
+## Power-меню
+
+`Win+X` → `powermenu`: fuzzel в режиме dmenu со строками `lock`, `suspend`, `reboot`, `poweroff`. `Esc` — ничего не делать. `suspend` блокирует экран сам, через `before-sleep` у swayidle. Выход из dwl — по-прежнему `Win+Shift+Q`.
 
 ## Как менять конфиг
 

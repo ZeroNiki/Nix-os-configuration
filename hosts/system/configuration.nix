@@ -46,7 +46,7 @@
   # Russian man pages (MANOPT="-L ru_RU.UTF-8" in home/home.nix) need it generated.
   i18n.extraLocales = [ "ru_RU.UTF-8/UTF-8" ];
 
-  # --- Swap: zram instead of a disk partition (see Usage.md 1.2, Option A) ---
+  # --- Swap: zram instead of a disk partition ---
   zramSwap.enable = true;
 
   # --- Audio: PipeWire (replaces pipewire/pipewire-pulse/pipewire-jack/wireplumber from Arch) ---
@@ -116,7 +116,7 @@
   # Before first boot, either set `users.users.${username}.initialPassword`
   # for a throwaway one to change on first login, or run `passwd` from the
   # NixOS installer's chroot (`nixos-enter --root /mnt`) right after
-  # `nixos-install` — see Usage.md section 1.5.
+  # `nixos-install` — see Usage.md, "Переустановка".
   users.users.${username} = {
     isNormalUser = true;
     description = "Nella";
@@ -148,12 +148,10 @@
     virtualisation.memorySize = 8192; # MB
     virtualisation.cores = 4;
     # No VGA device: this VM is verified over the serial console
-    # (QEMU_OPTS="-nographic"), not a graphical window. A real Niri session
-    # needs GPU/GBM-accelerated video (virtio-vga-gl + `-display ...,gl=on`)
-    # which turned out not to work from this particular host's GL stack —
-    # see the chat history / Usage.md for that dead end. None of this
-    # affects the real install: Niri runs against the laptop's actual Intel
-    # iGPU there, not a virtio-gpu passthrough.
+    # (QEMU_OPTS="-nographic"), not a graphical window. A real dwl session
+    # needs GPU/GBM-accelerated video (virtio-vga-gl + `-display ...,gl=on`),
+    # which didn't work from this host's GL stack. None of this affects the
+    # real install: dwl runs on the laptop's Intel iGPU there.
     virtualisation.qemu.options = [ "-vga" "none" ];
 
     # Throwaway login for THIS TEST VM ONLY — the real `configuration.nix`

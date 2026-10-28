@@ -138,8 +138,8 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
 
 /* commands */
-/* --gtk-single-instance=false: otherwise a ghostty already running under niri
- * opens the new window over there instead of in dwl */
+/* --gtk-single-instance=false: otherwise a ghostty already running elsewhere
+ * (another session, a nested dwl) opens the new window over there */
 static const char *termcmd[] = { "ghostty", "--gtk-single-instance=false", NULL };
 static const char *menucmd[] = { "fuzzel", NULL };
 /* swaylock-effects, themed in home/dwl/default.nix; -f returns once locked */

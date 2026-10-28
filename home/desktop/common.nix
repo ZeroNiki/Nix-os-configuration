@@ -29,8 +29,8 @@ in
   };
 
   # --- Terminal ---
-  # ghostty kept as the single terminal; kitty/tabby/termius dropped per
-  # README.md section 3 (duplicated terminal/SSH-client functionality).
+  # ghostty kept as the single terminal; kitty/tabby/termius dropped
+  # (duplicated terminal/SSH-client functionality).
   # Settings carried over from ~/.dotfiles/.config/ghostty/config (minus its
   # `theme` line). Ghostty ships no Everforest Dark *Medium*, so the
   # built-in Dark Hard is used with its background swapped for bg0.
@@ -180,7 +180,7 @@ in
   services.playerctld.enable = true;
 
   # --- Screenshots, brightness, outputs ---
-  # Wayland utilities called from home/dwl/config.h (README.md section 4);
+  # Wayland utilities called from home/dwl/config.h;
   # wlr-randr lists the outputs (names, modes, scale) for the kanshi profiles.
   home.packages = with pkgs; [
     grim

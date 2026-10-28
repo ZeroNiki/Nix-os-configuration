@@ -71,7 +71,7 @@ nix shell --inputs-from /etc/nixos nixpkgs#pciutils -c lspci -D | grep -E 'VGA|3
 sudo nixos-rebuild switch --flake /etc/nixos#gigabyte-nixos --specialisation intel-only
 ```
 
-Но чёрный список модулей действует только при загрузке: уже загруженные модули NVIDIA так не выгрузятся, поэтому надёжный путь — перезагрузка с выбором пункта в меню. Если графика не запускается совсем, есть ещё консоль: `Ctrl+Alt+F2` (см. также [`Usage.md`](../../Usage.md#01-pre-flight-checklist-read-this-before-you-boot-the-installer), раздел 0.1).
+Но чёрный список модулей действует только при загрузке: уже загруженные модули NVIDIA так не выгрузятся, поэтому надёжный путь — перезагрузка с выбором пункта в меню. Если графика не запускается совсем, есть ещё консоль: `Ctrl+Alt+F2` (см. также [`Usage.md`](../../Usage.md#откат)).
 
 ## Внешний монитор и видеокарта
 

@@ -29,7 +29,7 @@ in
   services.displayManager.sessionPackages = [ dwlDesktopSession ];
 
   # --- Greeter: greetd + tuigreet ---
-  # Chosen over sddm (README.md section 2: pick one display manager) because
+  # Chosen over sddm (one display manager only) because
   # it is a single small binary with a TTY-like UI, which also matches the
   # DWL/suckless direction better than a Qt-based greeter.
   services.greetd = {

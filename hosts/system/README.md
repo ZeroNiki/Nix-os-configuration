@@ -1,8 +1,8 @@
 # Системная конфигурация хоста `gigabyte-nixos`
 
-`configuration.nix` — основная системная часть (загрузчик, ядро, сеть, звук, Bluetooth, DDC/CI, контейнеры и виртуализация, Steam, шрифты, пользователь, тестовая VM), `hardware-configuration.nix` — диски, файловые системы и модули initrd. Графика NVIDIA вынесена в [`modules/hardware`](../../modules/hardware/README.md), рабочий стол — в [`modules/desktop`](../../modules/desktop/README.md).
+`configuration.nix` — основная системная часть (загрузчик, ядро, Nix и nh, сеть, звук, Bluetooth, DDC/CI, контейнеры и виртуализация, Steam, шрифты, пользователь, тестовая VM), `hardware-configuration.nix` — диски, файловые системы и модули initrd. Графика NVIDIA вынесена в [`modules/hardware`](../../modules/hardware/README.md), рабочий стол — в [`modules/desktop`](../../modules/desktop/README.md).
 
-Установка и обслуживание — в [`Usage.md`](../../Usage.md), здесь только что и почему настроено.
+Сборка, откат и переустановка — в [`Usage.md`](../../Usage.md), здесь только что и почему настроено.
 
 ## `configuration.nix`
 
@@ -17,8 +17,22 @@
 | `hardware.cpu.intel.updateMicrocode` | `true` | микрокод Intel |
 | `nixpkgs.config.allowUnfree` | `true` | нужно для драйвера NVIDIA (и Steam) |
 | `nix.settings.experimental-features` | `nix-command flakes` | без этого `nix flake …` после установки не работает |
+| `nix.settings.auto-optimise-store` | `true` | одинаковые файлы в `/nix/store` заменяются жёсткими ссылками прямо при добавлении |
+| `nix.channel.enable` | `false` | каналов нет, всё из flake. `nix-shell -p` и `nix shell nixpkgs#…` работают и берут nixpkgs этого flake: `lib.nixosSystem` выставляет `nixpkgs.flake.source`, из него NixOS заполняет `NIX_PATH` и реестр |
 
 В меню systemd-boot у каждого поколения есть ещё пункт `intel-only` — см. [`modules/hardware`](../../modules/hardware/README.md#пункт-загрузки-intel-only).
+
+### nh и сборка мусора
+
+`programs.nh` — [`nh`](https://github.com/nix-community/nh), обёртка над `nixos-rebuild` с деревом сборки и diff пакетов перед активацией:
+
+| Опция | Значение | Зачем |
+|---|---|---|
+| `flake` | `"/etc/nixos"` | `NH_FLAKE`: `nh os switch` без `--flake` |
+| `clean.enable` | `true` | `nh-clean.timer`, раз в неделю (`clean.dates` по умолчанию `weekly`) |
+| `clean.extraArgs` | `--keep 5 --keep-since 7d` | удаляются поколения старше 7 дней, кроме последних 5, потом `/nix/store` чистится от мусора |
+
+`nix.gc.automatic` не включён: `nh clean` делает то же самое и чистит ещё профили пользователя и GC-корни `result`; вместе они конфликтуют (NixOS выдаст предупреждение). Команды — в [`Usage.md`](../../Usage.md#сборка-и-применение-nh).
 
 ### Сеть, время, локаль
 
@@ -63,18 +77,20 @@ ddcutil getvcp 10
 
 - `programs.zsh.enable`, `users.defaultUserShell = pkgs.zsh`; настройка zsh — в [`home`](../../home/README.md#zsh).
 - `users.users.nellaror` (имя приходит из `flake.nix` через `specialArgs.username`): обычный пользователь, группы `wheel`, `networkmanager`, `docker`, `libvirtd`, `video` (подсветка ноутбука через `brightnessctl`), `input`, `i2c` (DDC/CI, см. выше), shell — zsh.
-- **Пароль в конфиге не задан** намеренно, чтобы он не попал в git. После установки его ставят через `passwd` (см. [`Usage.md`](../../Usage.md#15-install), раздел 1.5). Пароль, заданный `passwd`, сохраняется между пересборками.
+- **Пароль в конфиге не задан** намеренно, чтобы он не попал в git. После установки его ставят через `passwd` (см. [`Usage.md`](../../Usage.md#переустановка)). Пароль, заданный `passwd`, сохраняется между пересборками.
 - Системные пакеты — только `git` и `vim`, всё пользовательское — в Home Manager.
 - `security.polkit.enable` (агент аутентификации — в [`modules/desktop`](../../modules/desktop/README.md#polkit-агент)).
 
 ### Docker и libvirt
 
-- `virtualisation.docker.enable` — Docker, пользователь в группе `docker` (команды без sudo). Podman специально не включён рядом с Docker, чтобы не держать два рантайма; при желании блок заменяется на `virtualisation.podman`.
+- `virtualisation.docker.enable` — Docker, пользователь в группе `docker` (команды без sudo). `enableOnBoot = false`: `dockerd` не стартует при загрузке, его поднимает `docker.socket` при первом вызове `docker` (первая команда после загрузки — на секунду дольше). Контейнеры с `--restart=always` поэтому тоже поднимаются только после первого обращения к docker, а не при загрузке. Podman специально не включён рядом с Docker, чтобы не держать два рантайма; при желании блок заменяется на `virtualisation.podman`.
 - `virtualisation.libvirtd.enable` + `programs.virt-manager.enable` — QEMU/KVM через libvirt, GUI `virt-manager`, пользователь в группе `libvirtd`. VirtualBox не ставится: libvirt закрывает ту же задачу без второго гипервизора.
+- Vagrant (пакет — в `home/home.nix`) работает через libvirt: пакет `vagrant` в nixpkgs уже собран с плагином `vagrant-libvirt` (`vagrant plugin list` → `vagrant-libvirt (system)`), а `VAGRANT_DEFAULT_PROVIDER=libvirt` в `home.sessionVariables` делает его провайдером по умолчанию.
 
 ```bash
 docker run --rm hello-world
 virsh -c qemu:///system list --all
+vagrant init generic/debian12 && vagrant up   # VM в libvirt
 ```
 
 ### Игры
@@ -82,7 +98,8 @@ virsh -c qemu:///system list --all
 - `programs.steam` с `remotePlay.openFirewall = true` и `dedicatedServer.openFirewall = false`.
 - `programs.gamemode.enable`, `programs.gamescope.enable`.
 - 32-битная графика для Steam/Proton — `hardware.graphics.enable32Bit` в `modules/hardware/nvidia.nix`.
-- Запуск игры на NVIDIA: в Steam → Свойства → Параметры запуска `nvidia-offload %command%` (подробнее — [`modules/hardware`](../../modules/hardware/README.md#prime-offload-и-nvidia-offload)). С gamemode: `nvidia-offload gamemoderun %command%`.
+- `extraCompatPackages = [ pkgs.proton-ge-bin ]` — Proton-GE, выбирается в Steam → Свойства игры → Совместимость.
+- Запуск игры на NVIDIA: в Steam → Свойства → Параметры запуска `nvidia-offload gamemoderun %command%` (без gamemode — `nvidia-offload %command%`). Без этого игра рисуется на Intel. Подробнее — [`modules/hardware`](../../modules/hardware/README.md#prime-offload-и-nvidia-offload).
 
 ### Шрифты
 
@@ -99,7 +116,7 @@ virsh -c qemu:///system list --all
 | `virtualisation.qemu.options` | `[ "-vga" "none" ]` | VM проверяется через последовательную консоль (`QEMU_OPTS="-nographic"`), графического окна нет |
 | `users.users.nellaror.password` | `"nixos"` | вход в VM: `nellaror` / `nixos`. Только для VM, в настоящий конфиг пароль не попадает |
 
-KVM используется сам, если доступен (QEMU по умолчанию `accel=kvm:tcg`). Команды сборки и запуска — в [`Usage.md`](../../Usage.md#0-before-you-touch-partitions--validate-the-config-first-zero-risk), раздел 0.
+KVM используется сам, если доступен (QEMU по умолчанию `accel=kvm:tcg`). Команды сборки и запуска — в [`Usage.md`](../../Usage.md#проверка-в-vm).
 
 ### `system.stateVersion`
 
@@ -116,7 +133,7 @@ KVM используется сам, если доступен (QEMU по умо
 - `hardware.enableRedistributableFirmware = true` — прошивки Wi-Fi, Bluetooth, GPU.
 - `imports = [ (modulesPath + "/installer/scan/not-detected.nix") ]` — стандартный импорт от генератора.
 
-Список модулей initrd зависит от железа. При переустановке его сверяют с выводом `nixos-generate-config --show-hardware-config` (см. [`Usage.md`](../../Usage.md#13-generate-hardware-info-then-put-this-flake-where-the-installer-expects-it), раздел 1.3) и дописывают недостающие.
+Список модулей initrd зависит от железа. При переустановке его сверяют с выводом `nixos-generate-config --show-hardware-config` (см. [`Usage.md`](../../Usage.md#переустановка)) и дописывают недостающие.
 
 ### Диски и btrfs
 
@@ -132,7 +149,7 @@ KVM используется сам, если доступен (QEMU по умо
 
 `/.snapshots` — только сабвольюм под снимки: инструмент снапшотов (snapper, btrbk) в конфиге не настроен.
 
-**Почему по меткам, а не по UUID.** UUID появляется только при форматировании, поэтому описание по UUID пришлось бы после каждой разметки вписывать в репо заново. Метки задаются командами `mkfs` из `Usage.md` (`mkfs.fat -F32 -n EFI`, `mkfs.btrfs -L nixos`), так что этот файл верен сразу после форматирования, и тот же конфиг подходит для переустановки без правок.
+**Почему по меткам, а не по UUID.** UUID появляется только при форматировании, поэтому описание по UUID пришлось бы после каждой разметки вписывать в репо заново. Метки задаются командами `mkfs` из [`Usage.md`](../../Usage.md#переустановка) (`mkfs.fat -F32 -n EFI`, `mkfs.btrfs -L nixos`), так что этот файл верен сразу после форматирования, и тот же конфиг подходит для переустановки без правок.
 
 Чтобы смонтировать систему вручную (например, с установочной флешки), монтировать нужно сабвольюмы, а не корень btrfs:
 

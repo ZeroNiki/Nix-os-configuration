@@ -54,14 +54,16 @@ Type=Application
 
 - `dwl-startup` (запускается dwl через `-s`) делает `systemctl --user start dwl-session.target`;
 - `dwl-session.target` имеет `BindsTo=graphical-session.target`, `Wants=` и `After=graphical-session-pre.target`, то есть поднимает стандартный `graphical-session.target`;
-- все пользовательские сервисы с `WantedBy=graphical-session.target` стартуют вместе с ним: `polkit-agent` из этого модуля, `cliphist`, `cliphist-images`, `wpaperd`, `kanshi` из [`home/desktop`](../../home/desktop/README.md);
+- все пользовательские сервисы с `WantedBy=graphical-session.target` стартуют вместе с ним: `polkit-agent` из этого модуля, `swayidle` из [`home/dwl`](../../home/dwl/README.md#простой-и-сон), `cliphist`, `cliphist-images`, `wpaperd`, `kanshi`, `wlsunset` из [`home/desktop`](../../home/desktop/README.md);
 - после выхода из dwl `dwl-session` останавливает `dwl-session.target`; `graphical-session.target` имеет `StopWhenUnneeded`, а сервисы — `PartOf` него, поэтому останавливаются и они.
 
 Так любой сервис, который Home Manager или NixOS привязывают к `graphical-session.target`, работает в dwl без дополнительной настройки.
 
 ## Polkit-агент
 
-`systemd.user.services.polkit-agent` — `polkit-kde-authentication-agent-1` из `kdePackages.polkit-kde-agent-1`. Окно для ввода пароля, когда программа просит права через polkit (virt-manager, blueman, монтирование дисков). `WantedBy`, `PartOf`, `After` — `graphical-session.target`, `Restart=on-failure`.
+`systemd.user.services.polkit-agent` — `polkit-gnome-authentication-agent-1` из `polkit_gnome`. Окно для ввода пароля, когда программа просит права через polkit (virt-manager, blueman, монтирование дисков). `WantedBy`, `PartOf`, `After` — `graphical-session.target`, `Restart=on-failure`.
+
+Раньше здесь был агент KDE (`kdePackages.polkit-kde-agent-1`): ради одного окна он тянул Qt6 и KDE Frameworks. Агент GNOME — одно GTK-окно, а GTK в системе и так есть. `security.polkit.enable` — в `hosts/system/configuration.nix`.
 
 ```bash
 systemctl --user status polkit-agent
