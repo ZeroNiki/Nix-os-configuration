@@ -75,21 +75,27 @@
 
   # --- Containers / virtualisation ---
   virtualisation.docker.enable = true;
-  # podman is intentionally NOT enabled alongside docker to avoid the
-  # duplicated-hypervisor/duplicated-runtime problem flagged in README.md
-  # section 3. Swap this block for virtualisation.podman if you prefer a
+  # dockerd isn't started at boot, docker.socket starts it on the first
+  # `docker` call. Containers with --restart=always then come up only after
+  # that first call, not at boot.
+  virtualisation.docker.enableOnBoot = false;
+  # podman is intentionally NOT enabled alongside docker to avoid running
+  # two container runtimes. Swap this block for virtualisation.podman if you prefer a
   # daemonless rootless runtime instead.
 
   virtualisation.libvirtd.enable = true;
   programs.virt-manager.enable = true;
   # VirtualBox is deliberately dropped — libvirt/qemu covers the same need
-  # without running two hypervisors in parallel (see README.md section 3).
+  # without running two hypervisors in parallel. vagrant's nixpkgs package
+  # ships the vagrant-libvirt plugin, VAGRANT_DEFAULT_PROVIDER is set in
+  # home/home.nix.
 
   # --- Gaming ---
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true;
     dedicatedServer.openFirewall = false;
+    extraCompatPackages = [ pkgs.proton-ge-bin ];
   };
   programs.gamemode.enable = true;
   programs.gamescope.enable = true;

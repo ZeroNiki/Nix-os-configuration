@@ -167,6 +167,10 @@ in
 
   home.sessionPath = [ "$HOME/.local/bin" ]; # pipx
 
+  # no VirtualBox here: `vagrant up` goes to libvirt (the vagrant-libvirt
+  # plugin comes with nixpkgs' vagrant, see `vagrant plugin list`)
+  home.sessionVariables.VAGRANT_DEFAULT_PROVIDER = "libvirt";
+
   programs.git = {
     enable = true;
     settings = {
