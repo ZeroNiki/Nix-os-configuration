@@ -144,6 +144,8 @@ static const char *termcmd[] = { "ghostty", "--gtk-single-instance=false", NULL 
 static const char *menucmd[] = { "fuzzel", NULL };
 /* swaylock-effects, themed in home/dwl/default.nix; -f returns once locked */
 static const char *lockcmd[] = { "swaylock", "-f", NULL };
+/* lock / suspend / reboot / poweroff through fuzzel (home/dwl/default.nix) */
+static const char *powercmd[] = { "powermenu", NULL };
 
 /* dwl-status (home/dwl/default.nix) redraws the bar right away on "refresh" */
 #define STATUS(cmd) SHCMD(cmd "; dwl-status refresh")
@@ -155,6 +157,7 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_b,           spawn,            SHCMD("dwlb -toggle-visibility all") },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_s,           spawn,            SHCMD("grim -g \"$(slurp)\" - | wl-copy") },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_l,           spawn,            {.v = lockcmd} },
+	{ MODKEY,                    XKB_KEY_x,           spawn,            {.v = powercmd} },
 	{ 0,                         XKB_KEY_Print,       spawn,            SHCMD("grim - | wl-copy") },
 	{ 0,                         XKB_KEY_XF86AudioRaiseVolume,  spawn,  STATUS("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+") },
 	{ 0,                         XKB_KEY_XF86AudioLowerVolume,  spawn,  STATUS("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },

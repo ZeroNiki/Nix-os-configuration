@@ -345,6 +345,23 @@ let
     '';
   };
 
+  # Mod+x: lock / suspend / reboot / poweroff through fuzzel. Suspend locks
+  # first by itself (swayidle's before-sleep below).
+  powermenu = pkgs.writeShellApplication {
+    name = "powermenu";
+    runtimeInputs = [ config.programs.fuzzel.package config.programs.swaylock.package ];
+    text = ''
+      choice=$(printf '%s\n' "󰌾  lock" "󰤄  suspend" "󰜉  reboot" "󰐥  poweroff" |
+        fuzzel --dmenu --prompt "power: " --lines 4 --width 20) || exit 0
+      case $choice in
+        *lock) swaylock -f ;;
+        *suspend) systemctl suspend ;;
+        *reboot) systemctl reboot ;;
+        *poweroff) systemctl poweroff ;;
+      esac
+    '';
+  };
+
   # Runs as `dwl -s dwl-startup`. Its stdin is dwl's status stream, which the
   # final `exec dwlb` reads, so everything else goes to the background first.
   dwl-startup = pkgs.writeShellApplication {
@@ -353,7 +370,7 @@ let
     text = ''
       # Hand the session env to D-Bus/systemd activated services (portals,
       # mako), then start the user services of the session (polkit agent,
-      # cliphist, wpaperd, kanshi) through dwl-session.target below.
+      # swayidle, cliphist, wpaperd, kanshi, ...) through dwl-session.target below.
       dbus-update-activation-environment --systemd \
         WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
       systemctl --user start dwl-session.target || true
@@ -403,8 +420,8 @@ in
   # dwl has no systemd integration of its own, this is the same setup as
   # Home Manager's sway-session.target: dwl-startup starts it, which pulls
   # in graphical-session.target and with it every user service WantedBy
-  # that (polkit agent from modules/desktop/dwl.nix, cliphist, wpaperd and
-  # kanshi from home/desktop/common.nix). dwl-session stops it after dwl
+  # that (polkit agent from modules/desktop/dwl.nix, swayidle below, cliphist,
+  # wpaperd, kanshi and wlsunset from home/desktop/common.nix). dwl-session stops it after dwl
   # exits; graphical-session.target is StopWhenUnneeded and those services
   # are PartOf it, so they all go down with it.
   systemd.user.targets.dwl-session = {
@@ -423,6 +440,7 @@ in
     dwl-status
     dwl-session
     brightness
+    powermenu
     pkgs.ddcutil # DDC/CI by hand: `ddcutil detect`, `ddcutil getvcp 10`
   ];
 
@@ -485,6 +503,40 @@ in
       layout-text-color = c.dim;
     };
   };
+
+  # --- Idle and suspend ---
+  # Lock after 5 min without input, screens off after 10 (any input turns
+  # them back on), and lock before every suspend: lid, `systemctl suspend`,
+  # the power menu. -w (swayidle's default extraArgs here) makes logind wait
+  # until swaylock -f has actually locked, so the laptop never wakes up
+  # unlocked. Video in mpv/Firefox holds an idle inhibitor, then none of the
+  # timeouts fire. The pgrep keeps a second swaylock from starting over a
+  # locked screen. wlopm: dwl speaks wlr-output-power-management; it's
+  # wrapped in a script so the '*' needs no quoting inside swayidle's ExecStart.
+  services.swayidle =
+    let
+      lock = "${pkgs.procps}/bin/pgrep -x swaylock >/dev/null || ${config.programs.swaylock.package}/bin/swaylock -f";
+      screens = pkgs.writeShellScript "screens" ''exec ${pkgs.wlopm}/bin/wlopm "--$1" '*' '';
+    in
+    {
+      enable = true;
+      events = {
+        before-sleep = lock;
+        after-resume = "${screens} on";
+        lock = lock; # `loginctl lock-session`
+      };
+      timeouts = [
+        {
+          timeout = 300;
+          command = lock;
+        }
+        {
+          timeout = 600;
+          command = "${screens} off";
+          resumeCommand = "${screens} on";
+        }
+      ];
+    };
 
   # Launcher (Mod+p), themed to match the bar.
   programs.fuzzel = {
