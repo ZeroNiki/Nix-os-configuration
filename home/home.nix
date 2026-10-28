@@ -257,6 +257,12 @@ in
   home.file.".vimrc".source =
     config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/.vimrc";
 
+  # mpv-mpris: playerctl (media keys in home/dwl/config.h) controls mpv too
+  programs.mpv = {
+    enable = true;
+    scripts = [ pkgs.mpvScripts.mpris ];
+  };
+
   # --- CLI / TUI & Dev Tools (README.md section 3) ---
   home.packages = with pkgs; [
     ripgrep
@@ -329,7 +335,6 @@ in
     zathura
     syncthing
     spotify
-    mpv
 
     # --- Gaming: user-level helpers (system-wide bits live in configuration.nix) ---
     protontricks

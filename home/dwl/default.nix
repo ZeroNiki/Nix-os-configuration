@@ -44,8 +44,8 @@ let
     }
   '';
 
-  # Right side of the bar: keyboard layout, network, Bluetooth, volume,
-  # brightness, battery, clock. Redraws every 10s, or immediately on SIGUSR1: from
+  # Right side of the bar: do-not-disturb (only while on), keyboard layout,
+  # network, Bluetooth, volume (+ a muted microphone), brightness, battery, clock. Redraws every 10s, or immediately on SIGUSR1: from
   # `dwl-status refresh` (the volume and brightness keys in config.h) and from dwl itself on
   # a layout switch (patches/kblayout-local.patch). Clicking the network
   # block opens nmtui, the Bluetooth one blueman-manager.
@@ -134,13 +134,17 @@ let
       }
 
       volume() {
-        local out vol
+        local out vol mic
         out=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null) || return 0
         vol=$(awk '{ printf "%d", $2 * 100 + 0.5 }' <<<"$out")
         if [[ $out == *MUTED* ]]; then
           printf '^fg(${c.dim})󰖁 %s%%^fg()' "$vol"
         else
           printf '%s%s%%' "$(icon 󰕾)" "$vol"
+        fi
+        # the microphone only shows up while muted (XF86AudioMicMute)
+        if mic=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null) && [[ $mic == *MUTED* ]]; then
+          printf ' ^fg(${c.urgent})󰍭^fg()'
         fi
       }
 

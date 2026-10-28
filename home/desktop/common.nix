@@ -174,6 +174,11 @@ in
     temperature.night = 4000;
   };
 
+  # --- Media players ---
+  # playerctl (media keys in home/dwl/config.h) goes to whichever player was
+  # active last (Spotify, mpv with mpv-mpris, Firefox), not the first one.
+  services.playerctld.enable = true;
+
   # --- Screenshots, brightness, outputs ---
   # Wayland utilities called from home/dwl/config.h (README.md section 4);
   # wlr-randr lists the outputs (names, modes, scale) for the kanshi profiles.
@@ -183,5 +188,6 @@ in
     wl-clipboard
     brightnessctl
     wlr-randr
+    playerctl
   ];
 }

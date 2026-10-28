@@ -167,6 +167,13 @@ static const Key keys[] = {
 	{ 0,                         XKB_KEY_XF86AudioRaiseVolume,  spawn,  STATUS("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+") },
 	{ 0,                         XKB_KEY_XF86AudioLowerVolume,  spawn,  STATUS("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },
 	{ 0,                         XKB_KEY_XF86AudioMute,         spawn,  STATUS("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle") },
+	{ 0,                         XKB_KEY_XF86AudioMicMute,      spawn,  STATUS("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle") },
+	/* playerctl goes through playerctld: the player that was active last */
+	{ 0,                         XKB_KEY_XF86AudioPlay,         spawn,  SHCMD("playerctl play-pause") },
+	{ 0,                         XKB_KEY_XF86AudioPause,        spawn,  SHCMD("playerctl play-pause") },
+	{ 0,                         XKB_KEY_XF86AudioNext,         spawn,  SHCMD("playerctl next") },
+	{ 0,                         XKB_KEY_XF86AudioPrev,         spawn,  SHCMD("playerctl previous") },
+	{ 0,                         XKB_KEY_XF86AudioStop,         spawn,  SHCMD("playerctl stop") },
 	/* laptop and external monitors together; Mod+[ / Mod+] only the external ones (DDC/CI) */
 	{ 0,                         XKB_KEY_XF86MonBrightnessUp,   spawn,  SHCMD("brightness up") },
 	{ 0,                         XKB_KEY_XF86MonBrightnessDown, spawn,  SHCMD("brightness down") },
