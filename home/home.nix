@@ -253,13 +253,12 @@ in
     };
   };
 
-  # --- Neovim / Vim configs from ~/.dotfiles ---
-  # Out-of-store symlinks so they stay writable: lazy.nvim rewrites
+  # --- Neovim config from ~/.dotfiles ---
+  # Out-of-store symlink so it stays writable: lazy.nvim rewrites
   # lazy-lock.json, which a read-only /nix/store copy would not allow.
+  # vim (system package) runs with its defaults, no ~/.vimrc.
   xdg.configFile."nvim".source =
     config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/.config/nvim";
-  home.file.".vimrc".source =
-    config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.dotfiles/.vimrc";
 
   # mpv-mpris: playerctl (media keys in home/dwl/config.h) controls mpv too
   programs.mpv = {
@@ -294,7 +293,7 @@ in
   };
   xdg.configFile."mimeapps.list".force = true;
 
-  # --- CLI / TUI & Dev Tools (README.md section 3) ---
+  # --- CLI / TUI & Dev Tools ---
   home.packages = with pkgs; [
     ripgrep
     duf
@@ -303,7 +302,6 @@ in
     tree
     git-lfs
     glab
-    stow
     tree-sitter
     glow
     sops
@@ -329,9 +327,10 @@ in
     bash-language-server
     yaml-language-server
     vscode-langservers-extracted # jsonls
+    nixd # Nix LSP: options and packages of this flake
+    nixfmt
+    ruff # Python: formatter, import sorting and linter (LSP: `ruff server`)
     stylua
-    isort
-    black
     prettier
     shfmt
     codespell
@@ -355,9 +354,7 @@ in
     terraform-ls
     vagrant
 
-    cpufetch
-
-    # --- GUI: work / study (README.md section 3) ---
+    # --- GUI: work / study ---
     firefox
     vesktop # Wayland-native Discord client, replaces discord + telegram combo bloat
     telegram-desktop
@@ -381,10 +378,9 @@ in
   # --- Dotfiles ---
   # Home Manager generates and owns the configs of the programs enabled here,
   # in home/desktop/common.nix and in home/dwl/default.nix: zsh (.zshrc),
-  # git, delta, fzf, zoxide, bat, lsd, htop, yazi, fastfetch, mako, ghostty,
-  # swaylock and fuzzel. dwl has no config file, its config.h is compiled in.
-  # Only nvim and vim come from ~/.dotfiles, as mkOutOfStoreSymlink links
-  # (see above), so they stay editable in place. Don't `stow` any of the
-  # Home Manager-owned names from ~/.dotfiles: stow refuses to overwrite the
-  # generated files/symlinks, and the two would fight over them anyway.
+  # git, delta, fzf, zoxide, starship, bat, lsd, htop, yazi, fastfetch, mpv,
+  # mimeapps.list, mako, ghostty, swaylock, swayidle and fuzzel. dwl has no
+  # config file, its config.h is compiled in. Only nvim comes from
+  # ~/.dotfiles, as an mkOutOfStoreSymlink link (see above), so it stays
+  # editable in place.
 }
