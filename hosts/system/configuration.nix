@@ -15,6 +15,23 @@
   nixpkgs.config.allowUnfree = true; # required for the NVIDIA driver
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ]; # otherwise `nix flake update`/`nix flake check` don't work post-install
+  # Hard-links identical files in /nix/store as they are added.
+  nix.settings.auto-optimise-store = true;
+  # Flakes only: no nix-channel. `nix-shell -p` and `nix shell nixpkgs#...`
+  # still work, they get this flake's nixpkgs (lib.nixosSystem sets
+  # nixpkgs.flake.source, which fills NIX_PATH and the registry).
+  nix.channel.enable = false;
+
+  # --- nh: nixos-rebuild with a build tree and a package diff, plus GC ---
+  # `nh os switch` / `nh os build` / `nh os test` (NH_FLAKE points here, so no
+  # --flake needed). nh-clean.timer (weekly) drops every generation older than
+  # 7 days except the last 5 and collects the store; `nh clean all` by hand.
+  programs.nh = {
+    enable = true;
+    flake = "/etc/nixos";
+    clean.enable = true;
+    clean.extraArgs = "--keep 5 --keep-since 7d";
+  };
 
   # --- Hostname & networking ---
   networking.hostName = "gigabyte-nixos";
