@@ -1,5 +1,13 @@
 { config, lib, pkgs, username, ... }:
 
+let
+  # Prompt: "starship" (Pure-style, see programs.starship below; no oh-my-zsh)
+  # or "p10k" to roll back to oh-my-zsh + powerlevel10k with ~/.p10k.zsh,
+  # which is left in place for that.
+  prompt = "starship";
+  starship = prompt == "starship";
+  omz = "${pkgs.oh-my-zsh}/share/oh-my-zsh";
+in
 {
   imports = [
     ./desktop/common.nix # mako, ghostty, Wayland utilities
@@ -16,6 +24,8 @@
   # Ported from ~/.dotfiles/.zshrc, which is not linked: Home Manager owns
   # ~/.zshrc. Arch-only bits (fzf sourcing from /usr/share, zoxide init,
   # spicetify PATH) are dropped -- programs.fzf/zoxide do the first two.
+  # With prompt = "starship" oh-my-zsh is gone, only its git aliases stay
+  # (sourced from the package in initContent).
   programs.zsh = {
     enable = true;
     enableCompletion = true;
@@ -26,18 +36,16 @@
 
     # autosuggestions/syntax-highlighting come from the options above,
     # so they're not repeated here as oh-my-zsh plugins
-    oh-my-zsh = {
+    oh-my-zsh = lib.mkIf (!starship) {
       enable = true;
       plugins = [ "git" "copyfile" ];
     };
 
-    plugins = [
-      {
-        name = "powerlevel10k";
-        src = pkgs.zsh-powerlevel10k;
-        file = "share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
-      }
-    ];
+    plugins = lib.optional (!starship) {
+      name = "powerlevel10k";
+      src = pkgs.zsh-powerlevel10k;
+      file = "share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
+    };
 
     sessionVariables = {
       TERM = "xterm-256color";
@@ -62,20 +70,96 @@
       # y is the yazi wrapper below, not an alias
     };
 
-    initContent = lib.mkMerge [
-      # Powerlevel10k instant prompt, has to stay at the very top of ~/.zshrc
-      (lib.mkOrder 500 ''
-        if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
-          source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"
-        fi
-      '')
-      ''
-        # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-        [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+    initContent =
+      if starship then
+        ''
+          # oh-my-zsh's git aliases (gst, ga, gc, gp, gcl, ...) without
+          # oh-my-zsh; lib/git.zsh has git_current_branch, some of them call it.
+          # Its precmd hook removes itself with add-zsh-hook, which oh-my-zsh
+          # used to autoload (now only zsh-autosuggestions does, by chance).
+          autoload -Uz add-zsh-hook
+          source ${omz}/lib/git.zsh
+          source ${omz}/plugins/git/git.plugin.zsh
 
-        typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
-      ''
-    ];
+          # what the copyfile plugin did: a file's contents to the clipboard
+          copyfile() { wl-copy <"''${1:?usage: copyfile FILE}"; }
+        ''
+      else
+        lib.mkMerge [
+          # Powerlevel10k instant prompt, has to stay at the very top of ~/.zshrc
+          (lib.mkOrder 500 ''
+            if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
+              source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"
+            fi
+          '')
+          ''
+            # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+            [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+            typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
+          ''
+        ];
+  };
+
+  # Pure-style prompt, the same layout ~/.p10k.zsh had: directory and git on
+  # the first line, command time / virtualenv / user@host (ssh and root only)
+  # on its right, then the prompt character alone on the second line.
+  # ANSI colors, so ghostty's Everforest paints them.
+  programs.starship = {
+    enable = starship;
+    settings = {
+      add_newline = true;
+      format = "$directory$git_branch$git_state$git_status$fill$cmd_duration$python$username$hostname$line_break$character";
+      fill.symbol = " ";
+      directory = {
+        style = "blue";
+        truncation_length = 8;
+        truncate_to_repo = false;
+      };
+      git_branch = {
+        format = "[$branch]($style)";
+        style = "bright-black";
+      };
+      git_state.format = " [$state( $progress_current/$progress_total)]($style)";
+      git_status = {
+        format = "( [$conflicted$untracked$modified$staged$renamed$deleted]($style))( [$ahead_behind$stashed](cyan))";
+        style = "red";
+        conflicted = "=";
+        untracked = "?";
+        modified = "!";
+        staged = "+";
+        renamed = "»";
+        deleted = "✘";
+        stashed = "≡";
+        ahead = "⇡";
+        behind = "⇣";
+        diverged = "⇡⇣";
+      };
+      cmd_duration = {
+        min_time = 3000;
+        format = "[$duration]($style) ";
+        style = "yellow";
+      };
+      # only with an active virtualenv, not for every directory with .py files
+      python = {
+        format = "[$virtualenv]($style) ";
+        style = "bright-black";
+        detect_extensions = [ ];
+        detect_files = [ ];
+      };
+      username = {
+        format = "[$user]($style)";
+        style_user = "bright-black";
+        style_root = "red";
+      };
+      hostname.format = "[@$hostname]($style) ";
+      hostname.style = "bright-black";
+      character = {
+        success_symbol = "[❯](purple)";
+        error_symbol = "[❯](red)";
+        vimcmd_symbol = "[❮](green)";
+      };
+    };
   };
 
   home.sessionPath = [ "$HOME/.local/bin" ]; # pipx
