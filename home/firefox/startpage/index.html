@@ -1,0 +1,240 @@
+<!doctype html>
+<!--
+  Firefox start page. Colors (@key@) and the font (@font@) are placeholders
+  that home/firefox/default.nix fills in from home/theme/everforest.nix and
+  home/theme/font.nix, so open the installed copy
+  (~/.local/share/startpage/index.html), not this one.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Новая вкладка</title>
+<style>
+  :root {
+    --bg-dim: @bgDim@;
+    --bg0: @bg0@;
+    --bg1: @bg1@;
+    --bg2: @bg2@;
+    --bg3: @bg3@;
+    --fg: @fg@;
+    --grey: @grey1@;
+    --red: @red@;
+    --orange: @orange@;
+    --yellow: @yellow@;
+    --green: @green@;
+    --aqua: @aqua@;
+    --blue: @blue@;
+    --purple: @purple@;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    display: grid;
+    place-items: center;
+    padding: 24px 16px;
+    background: var(--bg0);
+    color: var(--fg);
+    font: 16px/1.5 "@font@", monospace;
+  }
+
+  main {
+    width: min(640px, 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  header { text-align: center; }
+
+  #clock {
+    font-size: clamp(64px, 16vw, 128px);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #clock .sep { color: var(--green); }
+
+  #greeting {
+    margin-top: 12px;
+    font-size: 18px;
+  }
+
+  #date { color: var(--grey); }
+
+  form { width: 100%; }
+
+  #search {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--bg3);
+    border-radius: 8px;
+    background: var(--bg1);
+    color: var(--fg);
+    font: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  #search::placeholder { color: var(--grey); }
+  #search:focus { border-color: var(--green); }
+
+  nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  nav a {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: var(--bg1);
+    color: var(--fg);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  nav a::before {
+    content: "";
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  nav a:hover, nav a:focus-visible {
+    background: var(--bg2);
+    border-color: var(--accent);
+    outline: none;
+  }
+
+  nav span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  nav kbd {
+    margin-left: auto;
+    color: var(--bg3);
+    font: inherit;
+    font-size: 12px;
+  }
+
+  @media (max-width: 560px) {
+    nav { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div id="clock">--<span class="sep">:</span>--</div>
+    <div id="greeting"></div>
+    <div id="date"></div>
+  </header>
+  <form id="form" autocomplete="off">
+    <input id="search" type="text" placeholder="Поиск  ( / )" autofocus spellcheck="false">
+  </form>
+  <nav id="links"></nav>
+</main>
+
+<script>
+  // Links: up to 8 (digits 1-8 open them while the search box isn't focused).
+  const LINKS = [
+    { name: "GitHub", url: "https://github.com" },
+    { name: "GitLab", url: "https://gitlab.com" },
+    { name: "Nix pkgs", url: "https://search.nixos.org/packages?channel=unstable" },
+    { name: "HM opts", url: "https://home-manager-options.extranix.com/?release=master" },
+    { name: "YouTube", url: "https://www.youtube.com" },
+    { name: "Gmail", url: "https://mail.google.com" },
+    { name: "Claude", url: "https://claude.ai" },
+    { name: "Wikipedia", url: "https://ru.wikipedia.org" },
+  ];
+
+  // %s is replaced with the query
+  const SEARCH = "https://duckduckgo.com/?q=%s";
+
+  const ACCENTS = ["green", "aqua", "blue", "purple", "yellow", "orange", "red"];
+
+  const $ = (id) => document.getElementById(id);
+
+  const nav = $("links");
+  LINKS.slice(0, 8).forEach((link, i) => {
+    const a = document.createElement("a");
+    a.href = link.url;
+    a.style.setProperty("--accent", `var(--${ACCENTS[i % ACCENTS.length]})`);
+    const name = document.createElement("span");
+    name.textContent = link.name;
+    a.append(name);
+    const kbd = document.createElement("kbd");
+    kbd.textContent = i + 1;
+    a.append(kbd);
+    nav.append(a);
+  });
+
+  function greeting(h) {
+    if (h >= 5 && h < 12) return "Доброе утро";
+    if (h >= 12 && h < 18) return "Добрый день";
+    if (h >= 18 && h < 23) return "Добрый вечер";
+    return "Доброй ночи";
+  }
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  function tick() {
+    const now = new Date();
+    $("clock").innerHTML = `${pad(now.getHours())}<span class="sep">:</span>${pad(now.getMinutes())}`;
+    $("greeting").textContent = greeting(now.getHours());
+    $("date").textContent = now.toLocaleDateString("ru-RU", {
+      weekday: "long", day: "numeric", month: "long",
+    });
+    // next update right at the start of the next minute
+    setTimeout(tick, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()));
+  }
+  tick();
+
+  // Enter: a domain-looking input (example.org, localhost:8080/x) is opened
+  // as is, anything else goes to SEARCH.
+  const LOOKS_LIKE_URL = /^(https?:\/\/)?(localhost|[\w-]+(\.[\w-]+)+)(:\d+)?(\/\S*)?$/i;
+
+  $("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = $("search").value.trim();
+    if (!q) return;
+    location.href = LOOKS_LIKE_URL.test(q)
+      ? (/^https?:\/\//i.test(q) ? q : `https://${q}`)
+      : SEARCH.replace("%s", encodeURIComponent(q));
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const search = $("search");
+    if (e.key === "Escape" && document.activeElement === search) {
+      search.value = "";
+      search.blur();
+      return;
+    }
+    if (document.activeElement === search || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key === "/") {
+      e.preventDefault();
+      search.focus();
+    } else if (/^[1-8]$/.test(e.key) && nav.children[e.key - 1]) {
+      nav.children[e.key - 1].click();
+    }
+  });
+</script>
+</body>
+</html>

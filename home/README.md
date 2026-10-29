@@ -7,7 +7,8 @@
 | `home.nix` | этот файл: shell, git, утилиты, пакеты | этот |
 | `desktop/common.nix` | mako, ghostty, cliphist, wpaperd, kanshi, wlsunset, playerctld, утилиты Wayland | [`desktop/README.md`](desktop/README.md) |
 | `dwl/` | dwl, патчи, панель, power-меню, запуск сессии, swaylock, swayidle, fuzzel | [`dwl/README.md`](dwl/README.md) |
-| `theme/everforest.nix` | палитра | [`theme/README.md`](theme/README.md) |
+| `firefox/` | Firefox (`programs.firefox`), стартовая страница | [`firefox/README.md`](firefox/README.md) |
+| `theme/everforest.nix`, `theme/font.nix` | палитра, моноширинный шрифт | [`theme/README.md`](theme/README.md) |
 
 `backupFileExtension = "hm-bak"`: если на месте файла, которым управляет Home Manager, уже лежит обычный файл, он переименовывается в `<имя>.hm-bak`, а не ломает активацию.
 
@@ -143,7 +144,7 @@ xdg-open file.pdf
 | nvim: LSP, форматтеры, сборка | см. таблицу выше |
 | Языки | `nodejs`, `python3`, `python3Packages.pip`, `pipx` |
 | DevOps | `kubectl` (через `lib.hiPrio`: minikube несёт свой, более старый `kubectl`, и без приоритета пакеты конфликтуют), `kubernetes-helm`, `minikube`, `terraform`, `terraform-ls`, `vagrant` (с `vagrant-libvirt`) |
-| GUI | `firefox`, `vesktop` (Discord с нативным Wayland), `telegram-desktop`, `obsidian`, `keepassxc`, `zathura`, `syncthing`, `spotify`, `imv` (картинки); `mpv` — через `programs.mpv` |
+| GUI | `vesktop` (Discord с нативным Wayland), `telegram-desktop`, `obsidian`, `keepassxc`, `zathura`, `syncthing`, `spotify`, `imv` (картинки); `mpv` — через `programs.mpv`, Firefox — через `programs.firefox` в [`firefox/`](firefox/README.md) |
 | Игры (пользовательское) | `protontricks`, `mangohud`; Steam, gamemode, gamescope — системные, в [`hosts/system`](../hosts/system/README.md) |
 
 Утилиты Wayland (`grim`, `slurp`, `wl-clipboard`, `brightnessctl`, `wlr-randr`, `playerctl`) — в [`desktop/common.nix`](desktop/README.md#утилиты), dwl, `dwlb`, `dwl-status`, `dwl-session`, `powermenu` — в [`dwl/default.nix`](dwl/README.md).

@@ -12,6 +12,7 @@ in
   imports = [
     ./desktop/common.nix # mako, ghostty, Wayland utilities
     ./dwl # dwl + bar (dwlb) + launcher theme, see home/dwl/default.nix
+    ./firefox # programs.firefox + the start page, see home/firefox/default.nix
   ];
 
   home.username = username;
@@ -355,7 +356,7 @@ in
     vagrant
 
     # --- GUI: work / study ---
-    firefox
+    # firefox: programs.firefox in home/firefox/default.nix
     vesktop # Wayland-native Discord client, replaces discord + telegram combo bloat
     telegram-desktop
     obsidian
@@ -379,7 +380,7 @@ in
   # Home Manager generates and owns the configs of the programs enabled here,
   # in home/desktop/common.nix and in home/dwl/default.nix: zsh (.zshrc),
   # git, delta, fzf, zoxide, starship, bat, lsd, htop, yazi, fastfetch, mpv,
-  # mimeapps.list, mako, ghostty, swaylock, swayidle and fuzzel. dwl has no
+  # Firefox policies (not the profile), mimeapps.list, mako, ghostty, swaylock, swayidle and fuzzel. dwl has no
   # config file, its config.h is compiled in. Only nvim comes from
   # ~/.dotfiles, as an mkOutOfStoreSymlink link (see above), so it stays
   # editable in place.
