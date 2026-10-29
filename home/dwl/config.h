@@ -150,6 +150,20 @@ static const char *powercmd[] = { "powermenu", NULL };
 /* dwl-status (home/dwl/default.nix) redraws the bar right away on "refresh" */
 #define STATUS(cmd) SHCMD(cmd "; dwl-status refresh")
 
+/* Mod+g: keep the pointer on the focused monitor, for games that don't grab
+ * it (borderless windows, a visible cursor); again to release it. The region
+ * is the monitor's box at the time of the press, so after a kanshi profile
+ * switch press it twice. Plain C here works because dwl.c includes this file
+ * after its globals (cursor, selmon). */
+static void
+togglecursorlock(const Arg *arg)
+{
+	static int cursorlocked; /* not "locked": dwl.c has that for swaylock */
+
+	cursorlocked = !cursorlocked;
+	wlr_cursor_map_to_region(cursor, cursorlocked ? &selmon->m : NULL);
+}
+
 static const Key keys[] = {
 	/* modifier                  key                  function          argument */
 	{ MODKEY,                    XKB_KEY_p,           spawn,            {.v = menucmd} },
@@ -203,6 +217,7 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_period,      focusmon,         {.i = WLR_DIRECTION_RIGHT} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_comma,       tagmon,           {.i = WLR_DIRECTION_LEFT} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_period,      tagmon,           {.i = WLR_DIRECTION_RIGHT} },
+	{ MODKEY,                    XKB_KEY_g,           togglecursorlock, {0} },
 	/* btrtile: swap with the neighbour in a direction, flip/mirror the split */
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Up,          swapclients,      {.ui = DIR_UP} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Down,        swapclients,      {.ui = DIR_DOWN} },

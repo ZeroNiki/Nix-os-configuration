@@ -107,6 +107,7 @@ systemctl --user status dwl-session.target swayidle wpaperd kanshi cliphist polk
 |---|---|
 | `Win+,` / `Win+.` | Фокус на монитор слева / справа |
 | `Win+Shift+,` / `Win+Shift+.` | Перенести окно на монитор слева / справа |
+| `Win+G` | Запереть курсор на мониторе в фокусе / отпустить (`togglecursorlock` в `config.h`, `wlr_cursor_map_to_region`). Для игр, которые сами не захватывают мышь (окно без рамки, видимый курсор). Границы берутся на момент нажатия: после смены профиля kanshi нажать дважды |
 
 ### Запуск программ
 
