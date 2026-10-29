@@ -14,7 +14,8 @@ let
     warn = theme.yellow;
   };
 
-  font = "JetBrainsMono Nerd Font";
+  # Terminess, crisp only at its bitmap sizes, see home/theme/font.nix
+  font = (import ../theme/font.nix).mono;
 
   # config.h lives next to this file, rebuild after every edit.
   dwl = (pkgs.dwl.override { configH = ./config.h; }).overrideAttrs (old: {
@@ -390,7 +391,7 @@ let
       { sleep 1; dwl-status | dwlb -status-stdin all; } &
 
       exec dwlb \
-        -font "${font}:size=11" \
+        -font "${font}:pixelsize=16" \
         -vertical-padding 5 \
         -hide-vacant-tags \
         -no-active-color-title \
@@ -472,7 +473,7 @@ in
       timestr = "%H:%M";
       datestr = "%a, %d %b";
       font = font;
-      font-size = 26;
+      font-size = 28; # px (cairo)
 
       indicator = true;
       indicator-idle-visible = true; # keep the clock up before any key press
@@ -554,7 +555,8 @@ in
     enable = true;
     settings = {
       main = {
-        font = "${font}:size=12";
+        # pixelsize: with size= fuzzel would scale by each monitor's DPI
+        font = "${font}:pixelsize=20";
         terminal = "ghostty -e";
         width = 40;
         lines = 10;

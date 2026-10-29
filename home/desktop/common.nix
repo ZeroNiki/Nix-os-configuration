@@ -2,6 +2,7 @@
 
 let
   theme = import ../theme/everforest.nix;
+  font = import ../theme/font.nix;
 in
 {
   # Desktop bits that don't depend on the compositor: notifications, the
@@ -14,7 +15,7 @@ in
     enable = true;
     settings = {
       default-timeout = 5000;
-      font = "JetBrainsMono Nerd Font 11";
+      font = "${font.mono} 16px"; # pango: px, not pt, to hit a bitmap size
       background-color = "#${theme.bg0}";
       text-color = "#${theme.fg}";
       border-color = "#${theme.green}";
@@ -41,8 +42,8 @@ in
       theme = "Everforest Dark Hard";
       background = "#${theme.bg0}";
 
-      font-family = "JetBrainsMono Nerd Font";
-      font-size = 18;
+      font-family = font.mono;
+      font-size = 18; # pt at 96 dpi: 24 px, one of Terminus' bitmap sizes
       font-style = "Regular";
 
       window-padding-x = 12;

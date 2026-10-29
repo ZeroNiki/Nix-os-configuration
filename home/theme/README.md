@@ -1,6 +1,6 @@
 # Палитра Everforest
 
-`everforest.nix` — цвета Everforest Dark Medium (hex без `#`), общие для панели, блокировки, лаунчера, уведомлений и терминала. Файл импортируют [`../dwl/default.nix`](../dwl/default.nix) и [`../desktop/common.nix`](../desktop/common.nix).
+`everforest.nix` — цвета Everforest Dark Medium (hex без `#`), общие для панели, блокировки, лаунчера, уведомлений и терминала. Файл импортируют [`../dwl/default.nix`](../dwl/default.nix), [`../desktop/common.nix`](../desktop/common.nix) и [`../firefox/default.nix`](../firefox/README.md) (стартовая страница Firefox получает все ключи палитры как CSS-переменные).
 
 > **`config.h` повторяет нужные ему цвета вручную** (это C, импортировать Nix он не может). При смене палитры править оба места: `everforest.nix` и `rootcolor` / `bordercolor` / `focuscolor` / `urgentcolor` / `fullscreen_bg` в [`../dwl/config.h`](../dwl/config.h). Затем пересобрать и перезайти в dwl.
 
@@ -11,19 +11,19 @@
 | Ключ | Hex | Роль | Где используется |
 |---|---|---|---|
 | `bgDim` | `#232a2e` | самый тёмный фон | `config.h`: `rootcolor` (фон без обоев), `fullscreen_bg` |
-| `bg0` | `#2d353b` | основной фон (`c.bg`) | dwlb: фон тегов, середины, текст активного и срочного тега; swaylock: фон и заливка кольца; fuzzel: фон; mako: фон; ghostty: `background` |
-| `bg1` | `#343f44` | второй фон (`c.bgAlt`) | swaylock: кольцо в ожидании; fuzzel: выделенная строка |
-| `bg2` | `#3d484d` | | mako: `progress-color` |
-| `bg3` | `#475258` | рамки | `config.h`: `bordercolor` (окно без фокуса) |
-| `fg` | `#d3c6aa` | текст (`c.fg`) | dwlb: текст тегов; swaylock: текст; fuzzel: текст, ввод; mako: текст |
-| `grey1` | `#859289` | приглушённый (`c.dim`) | dwl-status: выключенный звук, выключенный Bluetooth; swaylock: кольцо после стирания ввода, раскладка; fuzzel: placeholder |
-| `red` | `#e67e80` | ошибка, срочное (`c.urgent`) | `config.h`: `urgentcolor`; dwlb: фон срочного тега; dwl-status: нет сети, батарея ≤ 15 %; swaylock: неверный пароль, Backspace; mako: рамка `critical` |
-| `yellow` | `#dbbc7f` | предупреждение (`c.warn`) | swaylock: Caps Lock |
-| `green` | `#a7c080` | акцент (`c.accent`) | `config.h`: `focuscolor` (окно в фокусе); dwlb: фон активного тега; dwl-status: значки; swaylock: проверка пароля, подсветка нажатий; fuzzel: промпт, совпадения, рамка; mako: рамка |
-| `orange` | `#e69875` | | не используется |
-| `aqua` | `#83c092` | | не используется |
-| `blue` | `#7fbbb3` | | не используется |
-| `purple` | `#d699b6` | | не используется |
+| `bg0` | `#2d353b` | основной фон (`c.bg`) | dwlb: фон тегов, середины, текст активного и срочного тега; swaylock: фон и заливка кольца; fuzzel: фон; mako: фон; ghostty: `background`; стартовая страница: фон |
+| `bg1` | `#343f44` | второй фон (`c.bgAlt`) | swaylock: кольцо в ожидании; fuzzel: выделенная строка; стартовая страница: строка поиска, ссылки |
+| `bg2` | `#3d484d` | | mako: `progress-color`; стартовая страница: ссылка под курсором |
+| `bg3` | `#475258` | рамки | `config.h`: `bordercolor` (окно без фокуса); стартовая страница: рамка строки поиска, номера ссылок |
+| `fg` | `#d3c6aa` | текст (`c.fg`) | dwlb: текст тегов; swaylock: текст; fuzzel: текст, ввод; mako: текст; стартовая страница: часы, текст |
+| `grey1` | `#859289` | приглушённый (`c.dim`) | dwl-status: выключенный звук, выключенный Bluetooth; swaylock: кольцо после стирания ввода, раскладка; fuzzel: placeholder; стартовая страница: дата, placeholder |
+| `red` | `#e67e80` | ошибка, срочное (`c.urgent`) | `config.h`: `urgentcolor`; dwlb: фон срочного тега; dwl-status: нет сети, батарея ≤ 15 %; swaylock: неверный пароль, Backspace; mako: рамка `critical`; стартовая страница: точка ссылки |
+| `yellow` | `#dbbc7f` | предупреждение (`c.warn`) | swaylock: Caps Lock; стартовая страница: точка ссылки |
+| `green` | `#a7c080` | акцент (`c.accent`) | `config.h`: `focuscolor` (окно в фокусе); dwlb: фон активного тега; dwl-status: значки; swaylock: проверка пароля, подсветка нажатий; fuzzel: промпт, совпадения, рамка; mako: рамка; стартовая страница: двоеточие часов, фокус поиска, точка ссылки |
+| `orange` | `#e69875` | | стартовая страница: точка ссылки |
+| `aqua` | `#83c092` | | стартовая страница: точка ссылки |
+| `blue` | `#7fbbb3` | | стартовая страница: точка ссылки |
+| `purple` | `#d699b6` | | стартовая страница: точка ссылки |
 
 ## Что берёт цвета не отсюда
 
@@ -43,3 +43,23 @@
    ```
 
    fuzzel и swaylock берут новые цвета при следующем запуске, уже работающие mako и ghostty — после перезапуска (`makoctl reload` для mako). dwl, dwlb и `dwl-status` — после выхода из dwl и нового входа.
+
+## Шрифт
+
+`font.nix` — моноширинный шрифт всего рабочего стола: `mono = "Terminess Nerd Font"`. Это Terminus TTF с иконками Nerd Font (пакет `nerd-fonts.terminess-ttf`; переименован, потому что лицензия Terminus требует другого имени у изменённых версий). Импортируют [`../desktop/common.nix`](../desktop/common.nix), [`../dwl/default.nix`](../dwl/default.nix), [`../firefox/default.nix`](../firefox/README.md) и [`hosts/system/configuration.nix`](../../hosts/system/README.md#шрифты) (`fonts.fontconfig.defaultFonts.monospace`).
+
+У Terminus есть встроенные битмапы для 12, 14, 16, 18, 20, 22, 24, 28 и 32 px. Чётким он выглядит только на этих размерах, на остальных рисуется контурами и мажется. Поэтому размеры заданы в пикселях, где программа это позволяет:
+
+| Программа | Размер | Как задан |
+|---|---|---|
+| ghostty (а значит nvim, zsh, yazi, …) | 24 px | `font-size = 18`: ghostty считает пункты при 96 dpi, 18 pt = 24 px |
+| dwlb | 16 px | `-font "…:pixelsize=16"` (с `size=` dwlb считал бы при 96 dpi: 11 pt = 14,7 px) |
+| fuzzel | 20 px | `font = "…:pixelsize=20"`; с `size=` fuzzel пересчитывает по физическому DPI каждого монитора (`dpi-aware=auto`) и в битмап не попадает |
+| mako | 16 px | `"… 16px"` (pango понимает `px`) |
+| swaylock | 28 px | `font-size = 28`, cairo считает в пикселях |
+| стартовая страница Firefox | 16 / 18 / 12 px | CSS; часы — 64–128 px, контурами (пиксельный вид при этом сохраняется) |
+| TTY, tuigreet | 24 px | `console.font = "ter-v24n"`, отдельный PSF-шрифт `terminus_font`, в `configuration.nix` |
+
+Чего в Terminess нет: `⇡` и `⇣` (git ahead/behind в промпте starship) — их подставляет DejaVu Sans Mono, они чуть отличаются по стилю. Тонкого начертания тоже нет, только обычное и жирное (плюс курсив).
+
+Сменить шрифт: поменять `mono` в `font.nix` и пакет в `fonts.packages` (`hosts/system/configuration.nix`), проверить размеры по таблице выше (у обычного векторного шрифта можно вернуться к пунктам: `size=11` у dwlb, `size=12` у fuzzel, `11` у mako). Откат на JetBrainsMono: `mono = "JetBrainsMono Nerd Font";`, пакет ещё установлен. TTY — отдельно, `console.font`.

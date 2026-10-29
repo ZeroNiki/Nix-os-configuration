@@ -1,5 +1,8 @@
 { config, lib, pkgs, username, ... }:
 
+let
+  font = import ../../home/theme/font.nix;
+in
 {
   # --- Bootloader ---
   boot.loader.systemd-boot.enable = true;
@@ -45,6 +48,15 @@
   i18n.defaultLocale = "en_US.UTF-8";
   # Russian man pages (MANOPT="-L ru_RU.UTF-8" in home/home.nix) need it generated.
   i18n.extraLocales = [ "ru_RU.UTF-8/UTF-8" ];
+
+  # TTY (and tuigreet on it): Terminus, the PSF build of the desktop's
+  # monospace font (home/theme/font.nix). 24 px rows: 160x50 on the laptop.
+  # earlySetup sets it already in the initrd, so boot messages use it too.
+  console = {
+    font = "ter-v24n";
+    packages = [ pkgs.terminus_font ];
+    earlySetup = true;
+  };
 
   # --- Swap: zram instead of a disk partition ---
   zramSwap.enable = true;
@@ -105,8 +117,12 @@
     noto-fonts
     noto-fonts-cjk-sans
     noto-fonts-color-emoji
-    nerd-fonts.jetbrains-mono
+    nerd-fonts.terminess-ttf # monospace, see home/theme/font.nix
+    nerd-fonts.jetbrains-mono # previous monospace, kept for a quick rollback
   ];
+  # what programs get when they ask for plain "monospace" (Firefox, GTK, ...);
+  # sans-serif and serif stay at the defaults
+  fonts.fontconfig.defaultFonts.monospace = [ font.mono ];
 
   # --- Security ---
   security.polkit.enable = true;

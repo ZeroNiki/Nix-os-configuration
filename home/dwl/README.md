@@ -207,7 +207,7 @@ systemctl --user status dwl-session.target swayidle wpaperd kanshi cliphist polk
 
 ## Панель dwlb
 
-Запускается из `dwl-startup` на всех мониторах, сверху, шрифтом `JetBrainsMono Nerd Font` 11. На новом мониторе бар появляется сам. Слева направо:
+Запускается из `dwl-startup` на всех мониторах, сверху, шрифтом `Terminess Nerd Font` 16 px (`pixelsize=16`, см. [`theme`](../theme/README.md#шрифт)). На новом мониторе бар появляется сам. Слева направо:
 
 - **теги** — только занятые и текущий; текущий — зелёный фон, срочный (urgent) — красный;
 - **символ лейаута** — `[B]`, `[]=`, `><>`, `[M]` (в monocle — `[N]`, число окон);

@@ -103,7 +103,12 @@ vagrant init generic/debian12 && vagrant up   # VM в libvirt
 
 ### Шрифты
 
-`noto-fonts`, `noto-fonts-cjk-sans`, `noto-fonts-color-emoji`, `nerd-fonts.jetbrains-mono` (`JetBrainsMono Nerd Font` — шрифт панели, терминала, лаунчера, блокировки и уведомлений).
+`noto-fonts`, `noto-fonts-cjk-sans`, `noto-fonts-color-emoji`, `nerd-fonts.terminess-ttf` (`Terminess Nerd Font` — Terminus с иконками Nerd Font: терминал, панель, лаунчер, блокировка, уведомления, стартовая страница Firefox), `nerd-fonts.jetbrains-mono` (прежний моноширинный, оставлен для отката).
+
+- `fonts.fontconfig.defaultFonts.monospace = [ "Terminess Nerd Font" ]` — его получают программы, которые просят просто `monospace` (моноширинный текст в Firefox, GTK). Обычный (`sans-serif`) и с засечками (`serif`) не менялись.
+- TTY и tuigreet на нём: `console.font = "ter-v24n"` из `pkgs.terminus_font` (PSF-версия Terminus, 12×24 px: 160×50 символов на экране ноутбука), `console.earlySetup = true` — шрифт ставится ещё в initrd.
+
+Имя шрифта задано один раз в [`home/theme/font.nix`](../../home/theme/README.md#шрифт) и импортируется отсюда и из модулей Home Manager.
 
 ### Тестовая VM (`virtualisation.vmVariant`)
 

@@ -11,7 +11,7 @@
 | Параметр | Значение |
 |---|---|
 | `default-timeout` | 5000 мс |
-| `font` | `JetBrainsMono Nerd Font 11` |
+| `font` | `Terminess Nerd Font 16px` (в пикселях, см. [`theme`](../theme/README.md#шрифт)) |
 | фон / текст / рамка | `bg0` / `fg` / `green` |
 | `progress-color` | `over` `bg2` |
 | `urgency=critical` | рамка `red` |
@@ -36,7 +36,7 @@ makoctl mode          # текущие режимы
 `programs.ghostty` с `enableZshIntegration`. Единственный терминал в системе: `Win+Enter`, клик по блоку сети на панели (`ghostty -e nmtui`), `terminal` в fuzzel.
 
 - Тема — встроенная `Everforest Dark Hard`, фон заменён на `bg0` (Everforest Dark Medium в ghostty нет). Остальные цвета терминала — из темы ghostty, не из `everforest.nix`.
-- `JetBrainsMono Nerd Font`, 18, отступы 12 px, мигающий блочный курсор, курсор мыши прячется при наборе, 10000 строк истории, закрытие без подтверждения.
+- `Terminess Nerd Font`, 18 pt (= 24 px при 96 dpi, по которым ghostty считает размер), отступы 12 px, мигающий блочный курсор, курсор мыши прячется при наборе, 10000 строк истории, закрытие без подтверждения.
 - `shell-integration-features = "cursor,sudo,title,ssh-env,ssh-terminfo"`. `ssh-terminfo` при первом `ssh` на хост ставит туда terminfo `xterm-ghostty`, `ssh-env` подставляет `TERM=xterm-256color`, если поставить не вышло. Поэтому `TERM` в zsh больше не переопределяется (см. [`../README.md`](../README.md#zsh)).
 - Переход между сплитами: `Alt+H` / `Alt+J` / `Alt+K` / `Alt+L` (влево / вниз / вверх / вправо).
 
