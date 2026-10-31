@@ -16,7 +16,7 @@ Firefox ставится через `programs.firefox`, а не через `home
 
 ## Стартовая страница
 
-Крупные часы, приветствие по времени суток (утро 5–12, день 12–18, вечер 18–23, ночь), дата, строка поиска и сетка ссылок. Шрифт — моноширинный из [`../theme/font.nix`](../theme/README.md#шрифт), как в панели и терминале (в `index.html` — заглушка `@font@`).
+Крупные часы, приветствие по времени суток (утро 5–12, день 12–18, вечер 18–23, ночь), дата, строка поиска и сетка ссылок. Шрифт — моноширинный из [`theme/font.nix`](../../theme/README.md#шрифт) (аргумент `font`), как в панели и терминале (в `index.html` — заглушка `@font@`).
 
 | Клавиша | Действие |
 |---|---|
@@ -29,7 +29,7 @@ Firefox при открытии окна обычно ставит фокус в
 
 ### Как устроено
 
-- **Цвета** — из [`../theme/everforest.nix`](../theme/README.md). В `index.html` вместо hex стоят заглушки `@bg0@`, `@green@`, … (по ключам палитры), `default.nix` подставляет значения через `builtins.replaceStrings`. Поэтому сам `startpage/index.html` из репо открывать бесполезно: смотреть установленную копию.
+- **Цвета** — из [`theme/everforest.nix`](../../theme/README.md) (аргумент `theme`). В `index.html` вместо hex стоят заглушки `@bg0@`, `@green@`, … (по ключам палитры), `default.nix` подставляет значения через `builtins.replaceStrings`. Поэтому сам `startpage/index.html` из репо открывать бесполезно: смотреть установленную копию.
 - **Установка** — `home.file."~/.local/share/startpage/index.html"` (`${config.xdg.dataHome}/startpage/index.html`), ссылка в `/nix/store`.
 - **Домашняя страница** — `programs.firefox.policies.Homepage.URL = "file://…/index.html"`, `Locked = false`. Страница становится домашней (кнопка «Домой», `Alt+Home`). Что открывать при запуске (домашнюю страницу или прошлую сессию), не задаётся: остаётся выбор из настроек Firefox.
 - **Новая вкладка** — ни настройки, ни политики для адреса новой вкладки в Firefox нет (`browser.newtab.url` убрали в Firefox 41). Его задаёт autoconfig: `programs.firefox.package = pkgs.firefox.override { extraPrefsFiles = [ … ]; }` дописывает в `mozilla.cfg` обёртки скрипт, который при запуске выставляет `AboutNewTab.newTabURL` (модуль `resource:///modules/AboutNewTab.sys.mjs`). `mozilla.cfg` в Firefox выполняется без песочницы, а `AboutNewTab.init()` переопределённый адрес не сбрасывает (проверено на Firefox 158). Через `extraPrefsFiles`, а не `extraPrefs`, потому что `extraPrefs` вставляется в shell-heredoc, и `$` в нём раскрывался бы. Если в новой версии Firefox модуль переедет, вкладка станет стандартной, а ошибка попадёт в консоль браузера (`Ctrl+Shift+J`).

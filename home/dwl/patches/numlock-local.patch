@@ -1,0 +1,33 @@
+[local] Num Lock on for every keyboard dwl sees, at startup and when plugged in later; numlock in config.h switches it
+
+diff --git a/dwl.c b/dwl.c
+index 58c4a88..3401e93 100644
+--- a/dwl.c
++++ b/dwl.c
+@@ -16,6 +16,7 @@
+ #include <wayland-server-core.h>
+ #include <wlr/backend.h>
+ #include <wlr/backend/libinput.h>
++#include <wlr/interfaces/wlr_keyboard.h> /* wlr_keyboard_notify_modifiers, numlock */
+ #include <wlr/render/allocator.h>
+ #include <wlr/render/swapchain.h>
+ #include <wlr/render/wlr_renderer.h>
+@@ -1070,6 +1071,18 @@
+ 
+ 	/* Add the new keyboard to the group */
+ 	wlr_keyboard_group_add_keyboard(kb_group->wlr_group, keyboard);
++
++	/* Num Lock on for every new keyboard (numlock in config.h). Set on the
++	 * device, not the group: the group copies a device's modifiers whenever
++	 * the device reports them (this call included), so a lock set on the
++	 * group alone would be undone by the device's next modifier change */
++	if (numlock) {
++		xkb_mod_index_t num = xkb_keymap_mod_get_index(keyboard->keymap, XKB_MOD_NAME_NUM);
++		if (num != XKB_MOD_INVALID)
++			wlr_keyboard_notify_modifiers(keyboard, keyboard->modifiers.depressed,
++					keyboard->modifiers.latched, keyboard->modifiers.locked | (1u << num),
++					keyboard->modifiers.group);
++	}
+ }
+ 
+ KeyboardGroup *

@@ -61,7 +61,7 @@ Type=Application
 
 ## Polkit-агент
 
-`systemd.user.services.polkit-agent` — `polkit-gnome-authentication-agent-1` из `polkit_gnome`. Окно для ввода пароля, когда программа просит права через polkit (virt-manager, blueman, монтирование дисков). `WantedBy`, `PartOf`, `After` — `graphical-session.target`, `Restart=on-failure`.
+`systemd.user.services.polkit-agent` — `polkit-gnome-authentication-agent-1` из `polkit_gnome`. Окно для ввода пароля, когда программа просит права через polkit (virt-manager, монтирование дисков). `WantedBy`, `PartOf`, `After` — `graphical-session.target`, `Restart=on-failure`.
 
 Раньше здесь был агент KDE (`kdePackages.polkit-kde-agent-1`): ради одного окна он тянул Qt6 и KDE Frameworks. Агент GNOME — одно GTK-окно, а GTK в системе и так есть. `security.polkit.enable` — в `hosts/system/configuration.nix`.
 

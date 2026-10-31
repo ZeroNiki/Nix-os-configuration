@@ -1,13 +1,16 @@
 { config, lib, pkgs, username, ... }:
 
 let
-  # Login-screen entry for tuigreet (F3 there picks the session). dwl itself
-  # is a Home Manager package, so point at the per-user profile.
+  # dwl itself is a Home Manager package, so the session starts from the
+  # per-user profile.
+  dwlSessionBin = "/etc/profiles/per-user/${username}/bin/dwl-session";
+
+  # Login-screen entry for tuigreet (F3 there picks the session).
   dwlDesktopSession = (pkgs.writeTextDir "share/wayland-sessions/dwl.desktop" ''
     [Desktop Entry]
     Name=dwl
     Comment=dwl Wayland compositor
-    Exec=/etc/profiles/per-user/${username}/bin/dwl-session
+    Exec=${dwlSessionBin}
     Type=Application
   '').overrideAttrs (old: {
     passthru = (old.passthru or { }) // { providedSessions = [ "dwl" ]; };
@@ -37,11 +40,11 @@ in
     settings = {
       default_session = {
         # --sessions lists every registered session (dwl from above) under
-        # F3; --remember-session keeps the last pick, dwl-session (same path
-        # as in dwlDesktopSession) is the default when nothing was picked yet.
+        # F3; --remember-session keeps the last pick, dwl-session is the
+        # default when nothing was picked yet.
         # --theme takes only ANSI color names (the greeter runs on a 16-color
         # VT), picked to sit close to the Everforest accents used in DWL.
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions --theme 'border=green;title=green;prompt=green;input=white;text=white;time=gray;action=darkgray;button=yellow' --cmd /etc/profiles/per-user/${username}/bin/dwl-session";
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-session --sessions ${config.services.displayManager.sessionData.desktops}/share/wayland-sessions --theme 'border=green;title=green;prompt=green;input=white;text=white;time=gray;action=darkgray;button=yellow' --cmd ${dwlSessionBin}";
         user = "greeter";
       };
     };

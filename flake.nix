@@ -18,15 +18,20 @@
   };
 
   outputs =
-    { self, nixpkgs, home-manager, nix-index-database, ... }:
+    { nixpkgs, home-manager, nix-index-database, ... }:
     let
       system = "x86_64-linux";
       username = "nellaror";
+      # Passed to every NixOS and Home Manager module as arguments, see
+      # theme/README.md
+      theme = import ./theme/everforest.nix;
+      font = import ./theme/font.nix;
+      args = { inherit username theme font; };
     in
     {
       nixosConfigurations.gigabyte-nixos = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit username; };
+        specialArgs = args;
         modules = [
           ./hosts/system/configuration.nix
           ./hosts/system/hardware-configuration.nix
@@ -38,15 +43,11 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "hm-bak";
-            home-manager.extraSpecialArgs = { inherit username; };
+            home-manager.extraSpecialArgs = args;
             home-manager.users.${username} = import ./home/home.nix;
             home-manager.sharedModules = [ nix-index-database.homeModules.nix-index ];
           }
         ];
       };
-
-      # Convenience alias so `nix flake check` / tooling that expects the
-      # hostname to match `nixos-rebuild`'s default lookup also works.
-      nixosConfigurations.default = self.nixosConfigurations.gigabyte-nixos;
     };
 }

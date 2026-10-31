@@ -9,14 +9,14 @@ static const int bypass_surface_visibility = 0;  /* 1 means idle inhibitors will
 static const unsigned int borderpx         = 2;  /* border pixel of windows */
 static const int gappx                     = 8;  /* gap between windows and screen edges (patches/gaps.patch) */
 static const unsigned int snap             = 32; /* snap pixel */
-/* Everforest Dark Medium: keep these in sync with home/theme/everforest.nix
- * (bgDim, bg3, green, red), which the bar, lock screen and launcher use */
-static const float rootcolor[]             = COLOR(0x232a2eff);
-static const float bordercolor[]           = COLOR(0x475258ff);
-static const float focuscolor[]            = COLOR(0xa7c080ff);
-static const float urgentcolor[]           = COLOR(0xe67e80ff);
+/* Everforest Dark Medium: 0x@<key>@ff, <key> from theme/everforest.nix,
+ * filled in by default.nix before the build */
+static const float rootcolor[]             = COLOR(0x@bgDim@ff);
+static const float bordercolor[]           = COLOR(0x@bg3@ff);
+static const float focuscolor[]            = COLOR(0x@green@ff);
+static const float urgentcolor[]           = COLOR(0x@red@ff);
 /* This conforms to the xdg-protocol. Set the alpha to zero to restore the old behavior */
-static const float fullscreen_bg[]         = COLOR(0x232a2eff); /* You can also use glsl colors */
+static const float fullscreen_bg[]         = COLOR(0x@bgDim@ff); /* You can also use glsl colors */
 
 /* btrtile (patches/btrtile.patch), set up like bspwm with
  * automatic_scheme longest_side + initial_polarity second_child:
@@ -81,6 +81,7 @@ static const char kblayout_comm[]    = "dwl-status";
 
 static const int repeat_rate = 25;
 static const int repeat_delay = 600;
+static const int numlock = 1; /* Num Lock on for every keyboard (patches/numlock-local.patch) */
 
 /* Trackpad */
 static const int tap_to_click = 1;

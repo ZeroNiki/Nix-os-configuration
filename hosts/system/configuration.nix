@@ -1,8 +1,5 @@
-{ config, lib, pkgs, username, ... }:
+{ config, lib, pkgs, username, font, ... }:
 
-let
-  font = import ../../home/theme/font.nix;
-in
 {
   # --- Bootloader ---
   boot.loader.systemd-boot.enable = true;
@@ -18,8 +15,13 @@ in
   nixpkgs.config.allowUnfree = true; # required for the NVIDIA driver
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ]; # otherwise `nix flake update`/`nix flake check` don't work post-install
-  # Hard-links identical files in /nix/store as they are added.
-  nix.settings.auto-optimise-store = true;
+  # Hard-links identical files in /nix/store once a day (nix-optimise.timer)
+  # instead of on every added path (auto-optimise-store): same result,
+  # builds don't wait for it.
+  nix.optimise.automatic = true;
+  # Garbage-collect during a build when less than 5 GiB is free, until 20 GiB is.
+  nix.settings.min-free = 5 * 1024 * 1024 * 1024;
+  nix.settings.max-free = 20 * 1024 * 1024 * 1024;
   # Flakes only: no nix-channel. `nix-shell -p` and `nix shell nixpkgs#...`
   # still work, they get this flake's nixpkgs (lib.nixosSystem sets
   # nixpkgs.flake.source, which fills NIX_PATH and the registry).
@@ -46,11 +48,11 @@ in
   # --- Locale / Time ---
   time.timeZone = "Asia/Tashkent";
   i18n.defaultLocale = "en_US.UTF-8";
-  # Russian man pages (MANOPT="-L ru_RU.UTF-8" in home/home.nix) need it generated.
+  # Russian man pages (MANOPT="-L ru_RU.UTF-8" in home/shell.nix) need it generated.
   i18n.extraLocales = [ "ru_RU.UTF-8/UTF-8" ];
 
   # TTY (and tuigreet on it): Terminus, the PSF build of the desktop's
-  # monospace font (home/theme/font.nix). 24 px rows: 160x50 on the laptop.
+  # monospace font (theme/font.nix). 24 px rows: 160x50 on the laptop.
   # earlySetup sets it already in the initrd, so boot messages use it too.
   console = {
     font = "ter-v24n";
@@ -58,10 +60,49 @@ in
     earlySetup = true;
   };
 
+  # Num Lock on in the virtual consoles, tuigreet's included. -D makes it
+  # the VT's default, so it survives a console reset by greetd/getty.
+  # dwl turns it on for its own keyboards (home/dwl/patches/numlock-local.patch).
+  systemd.services.numlock-tty = {
+    description = "Num Lock on in the virtual consoles";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "greetd.service" "getty.target" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      for tty in /dev/tty{1..6}; do
+        ${pkgs.kbd}/bin/setleds -D +num <"$tty"
+      done
+    '';
+  };
+
   # --- Swap: zram instead of a disk partition ---
   zramSwap.enable = true;
 
-  # --- Audio: PipeWire (replaces pipewire/pipewire-pulse/pipewire-jack/wireplumber from Arch) ---
+  # --- /tmp in RAM (half of it at most) ---
+  # Nix builds don't land here: the daemon builds in /nix/var/nix/builds
+  # (the default build-dir since Nix 2.30), on disk.
+  boot.tmp.useTmpfs = true;
+
+  # --- btrfs: monthly scrub, hourly snapshots of /home ---
+  # autoScrub covers every btrfs device once, not every subvolume mount.
+  services.btrfs.autoScrub.enable = true;
+  # /home (subvolume @home) is snapshotted into /.snapshots (@snapshots):
+  # every snapshot for 2 days, then one a day for 14. The system itself is
+  # rolled back through generations instead.
+  services.btrbk.instances.home = {
+    onCalendar = "hourly";
+    settings = {
+      timestamp_format = "long"; # home.YYYYMMDDThhmm, several a day
+      snapshot_preserve_min = "2d";
+      snapshot_preserve = "14d";
+      volume."/" = {
+        snapshot_dir = ".snapshots";
+        subvolume = "home";
+      };
+    };
+  };
+
+  # --- Audio: PipeWire (ALSA, PulseAudio and JACK clients all go through it) ---
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
@@ -73,9 +114,10 @@ in
   };
 
   # --- Bluetooth ---
+  # The adapter stays off after boot (battery); bluetui (home/apps.nix,
+  # click on the Bluetooth block of the bar) turns it on.
   hardware.bluetooth.enable = true;
-  hardware.bluetooth.powerOnBoot = true;
-  services.blueman.enable = true;
+  hardware.bluetooth.powerOnBoot = false;
 
   # --- External monitor brightness over DDC/CI (ddcutil, `brightness` in home/dwl) ---
   # Loads i2c-dev and gives /dev/i2c-* to the "i2c" group (and the local seat).
@@ -99,8 +141,8 @@ in
   programs.virt-manager.enable = true;
   # VirtualBox is deliberately dropped — libvirt/qemu covers the same need
   # without running two hypervisors in parallel. vagrant's nixpkgs package
-  # ships the vagrant-libvirt plugin, VAGRANT_DEFAULT_PROVIDER is set in
-  # home/home.nix.
+  # ships the vagrant-libvirt plugin (package in home/dev.nix),
+  # VAGRANT_DEFAULT_PROVIDER is set there too.
 
   # --- Gaming ---
   programs.steam = {
@@ -117,7 +159,7 @@ in
     noto-fonts
     noto-fonts-cjk-sans
     noto-fonts-color-emoji
-    nerd-fonts.terminess-ttf # monospace, see home/theme/font.nix
+    nerd-fonts.terminess-ttf # monospace, see theme/font.nix
     nerd-fonts.jetbrains-mono # previous monospace, kept for a quick rollback
   ];
   # what programs get when they ask for plain "monospace" (Firefox, GTK, ...);
@@ -140,11 +182,19 @@ in
     shell = pkgs.zsh;
   };
 
+  # --- Editor: neovim only ---
+  # nano (NixOS default) is off, vim and vi are nvim; the config comes from
+  # ~/.dotfiles (home/dev.nix).
+  programs.nano.enable = false;
+  programs.neovim = {
+    enable = true;
+    defaultEditor = true; # EDITOR=nvim
+    viAlias = true;
+    vimAlias = true;
+  };
+
   # --- Minimal system packages (everything user-facing lives in Home Manager) ---
-  environment.systemPackages = with pkgs; [
-    git
-    vim
-  ];
+  environment.systemPackages = [ pkgs.git ];
 
   # --- CPU microcode ---
   hardware.cpu.intel.updateMicrocode = true;

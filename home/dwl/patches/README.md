@@ -11,6 +11,7 @@
 | 3 | `btrtile.patch` | [dwl-patches](https://codeberg.org/dwl/dwl-patches/src/branch/main/patches/btrtile), коммит `8a28588`, «btrtile: update for v0.9» (julmajustus), без изменений | Лейаут btrtile — дерево как в bspwm |
 | 4 | `btrtile-local.patch` | свой, `[local]` в заголовке | Подгонка btrtile под этот конфиг |
 | 5 | `kblayout-local.patch` | свой, `[local]` в заголовке | Индикатор раскладки EN/RU для панели |
+| 6 | `numlock-local.patch` | свой, `[local]` в заголовке | Num Lock включён при запуске |
 
 ### `gaps.patch`
 
@@ -36,6 +37,12 @@
 
 Функция `kblayout()`, вызывается при старте и на каждое событие модификаторов основной клавиатурной группы (смена раскладки приходит именно так). Если группа xkb изменилась: пишет `kblayout_names[группа]` в `$XDG_RUNTIME_DIR/<kblayout_file>` через `.tmp` + `rename`, читает PID из `$XDG_RUNTIME_DIR/<kblayout_pidfile>` и шлёт `SIGUSR1`, если `/proc/<pid>/comm` равен `kblayout_comm`. Все четыре значения — в `config.h` (`EN`/`RU`, `dwl-kblayout`, `dwl-status.pid`, `dwl-status`). Патч `kblayout` из dwl-patches не подошёл: он есть только для 0.7/0.8 и ещё переключает раскладку отдельно для каждого окна.
 
+### `numlock-local.patch`
+
+В `createkeyboard()`, сразу после того как клавиатура добавлена в общую группу, включает на ней Num Lock: `wlr_keyboard_notify_modifiers()` с битом `XKB_MOD_NAME_NUM` (`Mod2`) в `locked`. Срабатывает для каждой клавиатуры, которую видит dwl: при запуске и при подключении новой (USB, Bluetooth). Включается переменной `numlock` в `config.h` (`1` — включать, `0` — как в обычном dwl). Для `wlr_keyboard_notify_modifiers` подключён `<wlr/interfaces/wlr_keyboard.h>`.
+
+Почему на клавиатуре, а не на группе: wlroots при добавлении в группу переносит на клавиатуру только раскладку, а при каждом изменении модификаторов на клавиатуре копирует её состояние в группу. Num Lock, включённый только на группе, сбросился бы при первом нажатии Shift. Индикатор на клавиатуре wlroots зажигает сам, по состоянию xkb.
+
 ## Порядок и почему он важен
 
 Порядок задаёт список `patches` в `default.nix`. Каждый патч снят с дерева, где уже наложены предыдущие. Это видно по строкам `index` для `dwl.c` (проверено наложением на исходник dwl 0.9):
@@ -47,11 +54,12 @@ dwl 0.9          4cfd0fd
 + btrtile        a93e78a   (в самом патче index 4cfd0fd..: он снят с чистого dwl и ложится со сдвигом строк)
 + btrtile-local  30d8bd1   (в патче index a93e78a..30d8bd1)
 + kblayout-local 58c4a88   (в патче index 30d8bd1..58c4a88)
++ numlock-local  3401e93   (в патче index 58c4a88..3401e93)
 ```
 
 - `btrtile-local.patch` правит `btrtile.h` и строки `dwl.c`, которые добавляет `btrtile.patch`, поэтому только после него.
 - `btrtile-local.patch` и `gaps.patch` берут одну и ту же `gappx` из `config.h`, чтобы отступы были одинаковыми во всех лейаутах. Текстово они не пересекаются, но `btrtile-local.patch` снят поверх `gaps.patch`.
-- `kblayout-local.patch` снят поверх всех остальных: номера строк в его хунках — от уже пропатченного `dwl.c`.
+- `kblayout-local.patch` и `numlock-local.patch` сняты поверх всех предыдущих: номера строк в их хунках — от уже пропатченного `dwl.c`.
 
 Новый патч добавлять в конец списка и снимать с дерева, где уже наложены все остальные. Новый файл flake увидит только после `git add`.
 
@@ -86,7 +94,7 @@ dwl 0.9          4cfd0fd
      git diff > /etc/nixos/home/dwl/patches/<имя>.patch
      ```
 
-     Строку описания `[local] …` в начале `btrtile-local.patch` и `kblayout-local.patch` сохранить (`patch` пропускает текст перед первым `diff`). После этого `git commit -qam <имя>` и продолжить со следующего патча: все последующие снимаются с дерева, где уже лежит исправленный.
+     Строку описания `[local] …` в начале `btrtile-local.patch`, `kblayout-local.patch` и `numlock-local.patch` сохранить (`patch` пропускает текст перед первым `diff`). После этого `git commit -qam <имя>` и продолжить со следующего патча: все последующие снимаются с дерева, где уже лежит исправленный.
 
 4. Проверить сборку и тестовым вложенным dwl (см. [`../README.md`](../README.md#тест-без-выхода-из-сессии)), затем:
 

@@ -1,9 +1,5 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, theme, font, ... }:
 
-let
-  theme = import ../theme/everforest.nix;
-  font = import ../theme/font.nix;
-in
 {
   # Desktop bits that don't depend on the compositor: notifications, the
   # terminal, Wayland utilities. dwl itself lives in home/dwl/default.nix.
@@ -57,7 +53,7 @@ in
       scrollback-limit = 10000;
 
       shell-integration = "detect";
-      # ssh-env/ssh-terminfo: TERM stays xterm-ghostty (home/home.nix no
+      # ssh-env/ssh-terminfo: TERM stays xterm-ghostty (home/shell.nix no
       # longer forces xterm-256color), ssh installs its terminfo on the host
       # or falls back to xterm-256color there
       shell-integration-features = "cursor,sudo,title,ssh-env,ssh-terminfo";

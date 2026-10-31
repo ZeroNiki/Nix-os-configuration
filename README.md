@@ -8,52 +8,54 @@ Flake с конфигурацией NixOS для ноутбука Gigabyte (Inte
 
 | Часть | Что |
 |---|---|
-| Ядро, загрузка | ядро zen (`linuxPackages_zen`), systemd-boot, ESP в `/boot/efi`, btrfs с сабвольюмами, zram вместо раздела подкачки |
-| Nix | flakes без каналов, `nh` для сборки и еженедельной чистки, `auto-optimise-store`, `,` (comma) с готовой базой nix-index |
-| Графика | Intel рисует всё, NVIDIA просыпается по `nvidia-offload`; аварийный пункт загрузки `intel-only` |
-| Вход | greetd + tuigreet |
+| Ядро, загрузка, диск | ядро zen (`linuxPackages_zen`), systemd-boot, ESP в `/boot/efi`, btrfs с сабвольюмами (ежемесячный scrub, ежечасные снимки `/home` через btrbk), zram вместо раздела подкачки, `/tmp` в tmpfs |
+| Nix | flakes без каналов, `nh` для сборки и еженедельной чистки, дедупликация store по таймеру, `min-free`/`max-free`, `,` (comma) с готовой базой nix-index |
+| Графика | Intel рисует всё, NVIDIA просыпается по `nvidia-offload` |
+| Вход | greetd + tuigreet; Num Lock включён с загрузки (консоли и dwl) |
 | Рабочий стол | dwl 0.9 с патчами (лейаут btrtile как в bspwm, отступы, индикатор раскладки), dwlb + `dwl-status`, fuzzel (лаунчер, история буфера, power-меню), swaylock + swayidle, mako, wpaperd, kanshi, cliphist, wlsunset, playerctld |
-| Терминал и shell | ghostty, zsh + starship (откат на oh-my-zsh + powerlevel10k — одна строка в `home/home.nix`) |
+| Терминал и shell | ghostty, zsh + starship, единственный редактор — neovim (`vi`, `vim`, `EDITOR`) |
 | Тема | Everforest Dark Medium |
-| Прочее | PipeWire, Bluetooth, Docker, libvirt, Steam |
+| Прочее | PipeWire, Bluetooth (bluetui), Docker, libvirt, Steam |
 
 ## Устройство flake
 
 - **inputs:** `nixpkgs` (`nixos-unstable`), `home-manager` и `nix-index-database` (оба с `inputs.nixpkgs.follows = "nixpkgs"`, то есть на той же ревизии nixpkgs). Версии зафиксированы в `flake.lock`.
-- **outputs:** `nixosConfigurations.gigabyte-nixos` и `nixosConfigurations.default` — псевдоним на ту же конфигурацию.
-- `username = "nellaror"` задаётся один раз в `flake.nix` и передаётся во все модули через `specialArgs` (системные) и `home-manager.extraSpecialArgs` (Home Manager).
+- **outputs:** только `nixosConfigurations.gigabyte-nixos` (имя совпадает с hostname, поэтому `nh` и `nixos-rebuild` находят её без `#…`).
+- `flake.nix` один раз задаёт `username = "nellaror"` и импортирует палитру и шрифт из [`theme/`](theme/README.md); все три передаются во все модули аргументами (`username`, `theme`, `font`) через `specialArgs` (системные) и `home-manager.extraSpecialArgs` (Home Manager). Модули не импортируют тему по относительным путям.
 - Home Manager подключён модулем NixOS, а не отдельной командой: `home-manager.useGlobalPkgs` (тот же `pkgs`, что у системы, с `allowUnfree`), `useUserPackages` (пакеты пользователя в `/etc/profiles/per-user/nellaror`), `backupFileExtension = "hm-bak"`. Пересобирается вместе с системой одной командой (`nh os switch`). Модуль Home Manager из `nix-index-database` подключён через `home-manager.sharedModules`.
 
 ### Что откуда импортируется
 
 ```
-flake.nix
+flake.nix                                 theme/everforest.nix, theme/font.nix → аргументы theme, font
 └─ nixosConfigurations.gigabyte-nixos
-   ├─ hosts/system/configuration.nix        система: загрузка, сеть, звук, пользователь, сервисы
+   ├─ hosts/system/configuration.nix        система: загрузка, Nix, сеть, звук, редактор, btrfs, пользователь, сервисы
    ├─ hosts/system/hardware-configuration.nix  диски, initrd
-   ├─ modules/hardware/nvidia.nix           Intel + NVIDIA, intel-only
+   ├─ modules/hardware/nvidia.nix           Intel + NVIDIA (PRIME offload)
    ├─ modules/desktop/dwl.nix               greetd, сессия dwl, polkit, порталы
-   └─ home-manager.users.nellaror = home/home.nix   (+ nix-index-database.homeModules.nix-index)
+   └─ home-manager.users.nellaror = home/home.nix   git, xdg (+ nix-index-database.homeModules.nix-index)
+      ├─ home/shell.nix                     zsh, starship, fzf, zoxide, comma, bat, lsd, yazi, fastfetch, CLI-утилиты
+      ├─ home/dev.nix                       nvim из ~/.dotfiles, LSP и форматтеры, языки, kubectl/helm/terraform
+      ├─ home/apps.nix                      GUI и TUI-программы, mpv, программы по умолчанию, игры
       ├─ home/desktop/common.nix            mako, ghostty, cliphist, wpaperd, kanshi, wlsunset, playerctld
-      │  └─ home/theme/everforest.nix
-      └─ home/dwl/default.nix               dwl + патчи, dwlb, dwl-status, powermenu, запуск сессии, swaylock, swayidle, fuzzel
-         ├─ home/dwl/config.h
-         ├─ home/dwl/patches/*.patch
-         └─ home/theme/everforest.nix
+      ├─ home/dwl/default.nix               dwl + патчи, dwlb, dwl-status, powermenu, запуск сессии, swaylock, swayidle, fuzzel
+      │  ├─ home/dwl/config.h               цвета — заглушки @ключ@ из theme
+      │  └─ home/dwl/patches/*.patch
+      └─ home/firefox/default.nix           programs.firefox, стартовая страница
 ```
 
 ## Документация
 
 | README | О чём |
 |---|---|
-| [`hosts/system/README.md`](hosts/system/README.md) | загрузчик, ядро, Nix и nh, сеть, звук, Bluetooth, Docker/libvirt/vagrant, Steam, шрифты, пользователь, zram, тестовая VM; диски, btrfs, метки |
-| [`modules/hardware/README.md`](modules/hardware/README.md) | NVIDIA: PRIME offload, `nvidia-offload`, busId, `intel-only`, внешние мониторы |
+| [`hosts/system/README.md`](hosts/system/README.md) | загрузчик, ядро, Nix и nh, сеть, звук, Bluetooth, редактор, Docker/libvirt/vagrant, Steam, шрифты, пользователь, zram, `/tmp`, тестовая VM; диски, btrfs, scrub, снимки `/home`, метки |
+| [`modules/hardware/README.md`](modules/hardware/README.md) | NVIDIA: PRIME offload, `nvidia-offload`, busId, внешние мониторы |
 | [`modules/desktop/README.md`](modules/desktop/README.md) | greetd + tuigreet, `dwl-session.target`, polkit, порталы, PAM для swaylock |
-| [`home/README.md`](home/README.md) | zsh и starship, git, CLI-утилиты, comma, nvim из `~/.dotfiles`, LSP из Nix, программы по умолчанию, пакеты |
+| [`home/README.md`](home/README.md) | разбиение на `home.nix` / `shell.nix` / `dev.nix` / `apps.nix`; zsh и starship, git, CLI-утилиты, comma, nvim из `~/.dotfiles`, LSP из Nix, программы по умолчанию, пакеты |
 | [`home/dwl/README.md`](home/dwl/README.md) | **рабочий стол**: запуск сессии, все горячие клавиши, лейауты, панель, раскладка, обои, мониторы, блокировка, как менять конфиг, частые проблемы |
 | [`home/dwl/patches/README.md`](home/dwl/patches/README.md) | патчи dwl: откуда, что делают, порядок, что делать при поломке |
 | [`home/desktop/README.md`](home/desktop/README.md) | mako, ghostty, cliphist, wpaperd, kanshi, wlsunset, playerctld, утилиты Wayland |
-| [`home/theme/README.md`](home/theme/README.md) | палитра Everforest и где какой цвет |
+| [`theme/README.md`](theme/README.md) | палитра Everforest и шрифт: как попадают в модули и где какой цвет |
 | [`Usage.md`](Usage.md) | сборка через nh, сборка мусора, откат, где что менять, игры на NVIDIA, проверка в VM, переустановка |
 
 ## Быстрые команды

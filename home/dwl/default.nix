@@ -1,9 +1,8 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, theme, font, ... }:
 
 let
-  # Everforest Dark Medium (home/theme/everforest.nix) under the role names
-  # the rest of this file uses; the colors in config.h match the same file.
-  theme = import ../theme/everforest.nix;
+  # Everforest Dark Medium (theme/everforest.nix) under the role names
+  # the rest of this file uses.
   c = {
     bg = theme.bg0;
     bgAlt = theme.bg1;
@@ -14,11 +13,15 @@ let
     warn = theme.yellow;
   };
 
-  # Terminess, crisp only at its bitmap sizes, see home/theme/font.nix
-  font = (import ../theme/font.nix).mono;
+  # config.h lives next to this file, rebuild after every edit. Its colors
+  # are @key@ placeholders for the palette keys (@bgDim@ -> 232a2e), filled
+  # in here like the Firefox start page's; line numbers stay the same.
+  configH = pkgs.writeText "config.h" (builtins.replaceStrings
+    (lib.mapAttrsToList (key: _: "@${key}@") theme)
+    (lib.attrValues theme) # same (sorted) key order
+    (builtins.readFile ./config.h));
 
-  # config.h lives next to this file, rebuild after every edit.
-  dwl = (pkgs.dwl.override { configH = ./config.h; }).overrideAttrs (old: {
+  dwl = (pkgs.dwl.override { inherit configH; }).overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
       ./patches/gaps.patch # gappx in config.h
       ./patches/keys-latin.patch # bindings keep working on the "ru" layout
@@ -28,6 +31,8 @@ let
       ./patches/btrtile-local.patch
       # EN/RU for dwl-status on every layout switch, settings in config.h
       ./patches/kblayout-local.patch
+      # Num Lock on at startup, numlock in config.h
+      ./patches/numlock-local.patch
     ];
   });
 
@@ -49,7 +54,7 @@ let
   # network, Bluetooth, volume (+ a muted microphone), brightness, battery, clock. Redraws every 10s, or immediately on SIGUSR1: from
   # `dwl-status refresh` (the volume and brightness keys in config.h) and from dwl itself on
   # a layout switch (patches/kblayout-local.patch). Clicking the network
-  # block opens nmtui, the Bluetooth one blueman-manager.
+  # block opens nmtui, the Bluetooth one bluetui (both in ghostty).
   dwl-status = pkgs.writeShellApplication {
     name = "dwl-status";
     runtimeInputs = with pkgs; [ coreutils gawk gnused wireplumber networkmanager bluez brightnessctl mako ];
@@ -194,7 +199,7 @@ let
           net=$(network)
           net=''${net:+^lm(ghostty -e nmtui)$net^lm()}
           bt=$(bluetooth)
-          bt=''${bt:+^lm(blueman-manager)$bt^lm()}
+          bt=''${bt:+^lm(ghostty -e bluetui)$bt^lm()}
         fi
 
         line=""
@@ -391,7 +396,7 @@ let
       { sleep 1; dwl-status | dwlb -status-stdin all; } &
 
       exec dwlb \
-        -font "${font}:pixelsize=16" \
+        -font "${font.mono}:pixelsize=16" \
         -vertical-padding 5 \
         -hide-vacant-tags \
         -no-active-color-title \
@@ -472,7 +477,7 @@ in
       clock = true;
       timestr = "%H:%M";
       datestr = "%a, %d %b";
-      font = font;
+      font = font.mono;
       font-size = 28; # px (cairo)
 
       indicator = true;
@@ -556,7 +561,7 @@ in
     settings = {
       main = {
         # pixelsize: with size= fuzzel would scale by each monitor's DPI
-        font = "${font}:pixelsize=20";
+        font = "${font.mono}:pixelsize=20";
         terminal = "ghostty -e";
         width = 40;
         lines = 10;

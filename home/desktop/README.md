@@ -2,7 +2,7 @@
 
 `common.nix` — то, что не зависит от композитора: уведомления (`mako`), терминал (`ghostty`), история буфера обмена (`cliphist`), обои (`wpaperd`), профили мониторов (`kanshi`), ночной режим (`wlsunset`), управление плеерами (`playerctld`) и утилиты Wayland. Подключается из [`../home.nix`](../home.nix), сам dwl — в [`../dwl`](../dwl/README.md).
 
-Цвета берутся из [`../theme/everforest.nix`](../theme/README.md).
+Цвета и шрифт — аргументы `theme` и `font` из [`theme/`](../../theme/README.md).
 
 ## Уведомления: mako
 
@@ -11,7 +11,7 @@
 | Параметр | Значение |
 |---|---|
 | `default-timeout` | 5000 мс |
-| `font` | `Terminess Nerd Font 16px` (в пикселях, см. [`theme`](../theme/README.md#шрифт)) |
+| `font` | `Terminess Nerd Font 16px` (в пикселях, см. [`theme`](../../theme/README.md#шрифт)) |
 | фон / текст / рамка | `bg0` / `fg` / `green` |
 | `progress-color` | `over` `bg2` |
 | `urgency=critical` | рамка `red` |
@@ -72,7 +72,7 @@ systemctl --user start wlsunset
 
 ## Плееры: playerctld
 
-`services.playerctld` — демон, который запоминает, какой MPRIS-плеер был активен последним. Без него `playerctl` берёт первый попавшийся; с ним медиа-клавиши (`playerctl play-pause`, `next`, `previous`, см. [`../dwl/README.md`](../dwl/README.md#медиа-клавиши)) идут в тот плеер, с которым работали последним: Spotify, mpv (со скриптом `mpris`, `programs.mpv` в `home.nix`), Firefox.
+`services.playerctld` — демон, который запоминает, какой MPRIS-плеер был активен последним. Без него `playerctl` берёт первый попавшийся; с ним медиа-клавиши (`playerctl play-pause`, `next`, `previous`, см. [`../dwl/README.md`](../dwl/README.md#медиа-клавиши)) идут в тот плеер, с которым работали последним: Spotify, mpv (со скриптом `mpris`, `programs.mpv` в `apps.nix`), Firefox.
 
 ```bash
 playerctl -l              # видимые плееры

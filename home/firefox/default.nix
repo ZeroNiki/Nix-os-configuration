@@ -1,9 +1,6 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, theme, font, ... }:
 
 let
-  theme = import ../theme/everforest.nix;
-  font = import ../theme/font.nix;
-
   # startpage/index.html has @key@ placeholders for the palette colors
   # and @font@ for the monospace font
   startpage = builtins.replaceStrings

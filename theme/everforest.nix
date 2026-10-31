@@ -1,6 +1,7 @@
-# Everforest Dark Medium, hex without '#'. Imported by home/dwl/default.nix
-# (dwlb, swaylock, fuzzel) and home/desktop/common.nix (mako, ghostty);
-# home/dwl/config.h is C and repeats the values it needs by hand.
+# Everforest Dark Medium, hex without '#'. flake.nix passes it to every
+# module as the `theme` argument: home/dwl/default.nix (dwlb, swaylock,
+# fuzzel, and config.h through its @key@ placeholders), home/desktop/common.nix
+# (mako, ghostty) and home/firefox/default.nix (the start page).
 {
   bgDim = "232a2e"; # darkest background
   bg0 = "2d353b"; # main background

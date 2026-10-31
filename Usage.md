@@ -34,10 +34,10 @@ sudo nixos-rebuild switch --flake /etc/nixos
 
 ### Сборка мусора
 
-`programs.nh.clean`: раз в неделю `nh-clean.timer` удаляет поколения старше 7 дней, кроме последних 5, и чистит `/nix/store` (`--keep 5 --keep-since 7d`). `nix.settings.auto-optimise-store` заменяет одинаковые файлы в store жёсткими ссылками прямо при добавлении.
+`programs.nh.clean`: раз в неделю `nh-clean.timer` удаляет поколения старше 7 дней, кроме последних 5, и чистит `/nix/store` (`--keep 5 --keep-since 7d`). `nix.optimise.automatic`: раз в сутки `nix-optimise.timer` заменяет одинаковые файлы в store жёсткими ссылками (не при каждом добавлении, поэтому сборки не ждут). Если во время сборки свободно меньше 5 ГиБ, Nix сам собирает мусор, пока не освободится 20 ГиБ (`min-free` / `max-free`).
 
 ```bash
-systemctl list-timers nh-clean
+systemctl list-timers nh-clean nix-optimise
 nix-env --list-generations -p /nix/var/nix/profiles/system
 ```
 
@@ -49,22 +49,30 @@ nix-env --list-generations -p /nix/var/nix/profiles/system
 sudo nixos-rebuild switch --rollback
 ```
 
-Графика не стартует совсем: `Ctrl+Alt+F2` — консоль, или пункт `intel-only` в меню загрузки (без драйвера NVIDIA, см. [`modules/hardware`](modules/hardware/README.md#пункт-загрузки-intel-only)).
+Графика не стартует совсем: `Ctrl+Alt+F2` — консоль, оттуда `sudo nixos-rebuild switch --rollback` или правка конфига.
+
+Файлы в `/home` откатываются отдельно, из снимков btrbk (каждый час, хранятся 14 дней): `/.snapshots/home.<дата>T<время>/` — обычный каталог только для чтения, нужное просто копируется обратно, см. [`hosts/system`](hosts/system/README.md#снимки-home-btrbk).
+
+```bash
+ls /.snapshots
+cp -a /.snapshots/home.20261031T1200/nellaror/notes.md ~/
+```
 
 ## Где что менять
 
 | Хочу | Файл |
 |---|---|
-| Добавить / убрать пакет | `home/home.nix` (`home.packages`); разово запустить без установки — `, <команда>` |
-| Shell, промпт, алиасы, git | `home/home.nix` (`programs.zsh`, `programs.starship`) |
-| Программы по умолчанию (PDF, картинки, видео, браузер) | `home/home.nix` (`xdg.mimeApps`) |
-| Системный сервис (docker, libvirt, bluetooth, …), nh и сборка мусора | `hosts/system/configuration.nix` |
+| Добавить / убрать пакет | `home.packages` в `home/shell.nix` (CLI-утилиты), `home/dev.nix` (LSP, языки, DevOps) или `home/apps.nix` (программы, игры); разово запустить без установки — `, <команда>` |
+| Shell, промпт, алиасы | `home/shell.nix` (`programs.zsh`, `programs.starship`) |
+| git | `home/home.nix` (`programs.git`, `programs.delta`) |
+| Программы по умолчанию (PDF, картинки, видео, браузер) | `home/apps.nix` (`xdg.mimeApps`) |
+| Системный сервис (docker, libvirt, bluetooth, …), nh, сборка мусора, снимки и scrub btrfs, редактор | `hosts/system/configuration.nix` |
 | Режим NVIDIA PRIME (offload ↔ sync) | `modules/hardware/nvidia.nix` |
 | Клавиши dwl, лейауты, отступы, правила окон, цвета рамок | `home/dwl/config.h` |
 | Патчи dwl | `home/dwl/patches/` + список `patches` в `home/dwl/default.nix` |
 | Панель (`dwl-status`), power-меню, автоблокировка (swayidle), swaylock, fuzzel, запуск сессии | `home/dwl/default.nix` |
 | Уведомления, терминал, обои, мониторы (kanshi), ночной режим, cliphist, playerctld | `home/desktop/common.nix` |
-| Палитра Everforest | `home/theme/everforest.nix`; `config.h` повторяет нужные цвета вручную |
+| Палитра Everforest, моноширинный шрифт | `theme/everforest.nix`, `theme/font.nix` (в модули — аргументами `theme`, `font` из `flake.nix`; `config.h` берёт цвета через заглушки `@ключ@`) |
 | Экран входа, порталы, polkit-агент, переменные Wayland | `modules/desktop/dwl.nix` |
 
 ## Игры на NVIDIA

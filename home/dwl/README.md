@@ -2,11 +2,11 @@
 
 Композитор [dwl](https://codeberg.org/dwl/dwl) 0.9 со всем, что нужно для сессии: `config.h` (клавиши, лейауты, цвета, правила окон, клавиатура и тачпад), патчи (`patches/`), панель `dwlb` со скриптом статуса `dwl-status`, скрипт яркости `brightness`, power-меню `powermenu`, скрипты запуска `dwl-session` / `dwl-startup`, блокировка экрана `swaylock`, автоблокировка `swayidle` и лаунчер `fuzzel` (всё в `default.nix`).
 
-Системная часть (greetd, порталы, polkit, PAM) — в [`modules/desktop`](../../modules/desktop/README.md), уведомления, терминал, обои и мониторы — в [`home/desktop`](../desktop/README.md), цвета — в [`home/theme`](../theme/README.md), патчи по отдельности — в [`patches/README.md`](patches/README.md).
+Системная часть (greetd, порталы, polkit, PAM) — в [`modules/desktop`](../../modules/desktop/README.md), уведомления, терминал, обои и мониторы — в [`home/desktop`](../desktop/README.md), цвета и шрифт — в [`theme`](../../theme/README.md), патчи по отдельности — в [`patches/README.md`](patches/README.md).
 
 | Файл | Что в нём |
 |---|---|
-| `config.h` | Конфиг dwl. Это C, он компилируется в бинарник: после правки нужна пересборка |
+| `config.h` | Конфиг dwl. Это C, он компилируется в бинарник: после правки нужна пересборка. Цвета в нём — заглушки `@bgDim@`, `@green@`, …, их `default.nix` заменяет на значения из `theme/everforest.nix` перед сборкой, поэтому сам файл как C не компилируется |
 | `default.nix` | Сборка dwl с патчами, `dwl-status`, `brightness`, `powermenu`, `dwl-startup`, `dwl-session`, `dwl-session.target`, `swaylock`, `swayidle`, `fuzzel` |
 | `patches/` | Патчи к dwl, порядок наложения задан в `default.nix` |
 
@@ -207,7 +207,7 @@ systemctl --user status dwl-session.target swayidle wpaperd kanshi cliphist polk
 
 ## Панель dwlb
 
-Запускается из `dwl-startup` на всех мониторах, сверху, шрифтом `Terminess Nerd Font` 16 px (`pixelsize=16`, см. [`theme`](../theme/README.md#шрифт)). На новом мониторе бар появляется сам. Слева направо:
+Запускается из `dwl-startup` на всех мониторах, сверху, шрифтом `Terminess Nerd Font` 16 px (`pixelsize=16`, см. [`theme`](../../theme/README.md#шрифт)). На новом мониторе бар появляется сам. Слева направо:
 
 - **теги** — только занятые и текущий; текущий — зелёный фон, срочный (urgent) — красный;
 - **символ лейаута** — `[B]`, `[]=`, `><>`, `[M]` (в monocle — `[N]`, число окон);
@@ -223,7 +223,7 @@ systemctl --user status dwl-session.target swayidle wpaperd kanshi cliphist polk
 | «Не беспокоить» | серый `󰂛`, только пока режим включён | `makoctl mode` | — |
 | Раскладка | `EN` / `RU` | файл `$XDG_RUNTIME_DIR/dwl-kblayout` (пишет dwl) | — |
 | Сеть | Ethernet: `eth`. Wi-Fi: значок уровня сигнала (5 ступеней), SSID (до 12 символов), сигнал в %. Нет подключения: красный значок | `nmcli`; список Wi-Fi из кеша NetworkManager (`--rescan no`), сканирования нет | `ghostty -e nmtui` |
-| Bluetooth | Нет адаптера: блока нет. Выключен: серый значок. Включён без устройств: зелёный значок. Одно устройство: его имя (до 12 символов). Несколько: их число | `bluetoothctl` (с `timeout 2`) | `blueman-manager` |
+| Bluetooth | Нет адаптера: блока нет. Выключен: серый значок. Включён без устройств: зелёный значок. Одно устройство: его имя (до 12 символов). Несколько: их число | `bluetoothctl` (с `timeout 2`) | `ghostty -e bluetui` |
 | Громкость | `N%`; без звука — серым. Если микрофон выключен, рядом красный `󰍭` | `wpctl get-volume @DEFAULT_AUDIO_SINK@` и `@DEFAULT_AUDIO_SOURCE@` | — |
 | Яркость | `󰃠 N%` экрана ноутбука; при подключённом внешнем мониторе ещё `󰍹 N%` — значение, которое `brightness` выставил ему последним (монитор не опрашивается: ddcutil слишком медленный). Пока яркость монитора не меняли с этого входа, его части нет | `brightnessctl -m -c backlight`, файл `$XDG_RUNTIME_DIR/brightness/ext` | — |
 | Батарея | значок по уровню (шаг 10 %) и `N%`; при зарядке свой значок; 15 % и меньше — красным | `/sys/class/power_supply/BAT0` | — |
@@ -289,7 +289,7 @@ id                      # есть ли группа i2c (после добав�
 ```
 
 - `Invalid display` / `DDC communication failed` — в меню самого монитора выключен DDC/CI, включить и выполнить `brightness detect`.
-- Монитор на разъёме NVIDIA (на этом ноутбуке HDMI-A-2; номер `cardN` у разъёма может меняться между загрузками, скрипт на него не опирается): DDC через проприетарный драйвер работает, но бывает медленным или теряет команды. Проверить `ddcutil getvcp 10 --sleep-multiplier 2`; если помогает — дописать `--sleep-multiplier=2` в `ddc=(ddcutil)` в скрипте. В загрузке `intel-only` NVIDIA выключена, монитор на её разъёмах не работает вовсе.
+- Монитор на разъёме NVIDIA (на этом ноутбуке HDMI-A-2; номер `cardN` у разъёма может меняться между загрузками, скрипт на него не опирается): DDC через проприетарный драйвер работает, но бывает медленным или теряет команды. Проверить `ddcutil getvcp 10 --sleep-multiplier 2`; если помогает — дописать `--sleep-multiplier=2` в `ddc=(ddcutil)` в скрипте.
 - Вывод `ddcutil` при ошибках скрипт скрывает; запускать команды выше вручную.
 
 ## Раскладка EN/RU
@@ -297,6 +297,7 @@ id                      # есть ли группа i2c (после добав�
 - Раскладки `us,ru`, переключение `Win+Space` (`xkb_rules` в `config.h`: `.layout = "us,ru"`, `.options = "grp:win_space_toggle"`). Раскладка общая для всех окон.
 - `patches/kblayout-local.patch`: смена раскладки приходит в dwl событием модификаторов. Если активная группа xkb изменилась, dwl пишет имя из `kblayout_names[]` (`EN`, `RU`, в порядке `.layout`) в `$XDG_RUNTIME_DIR/dwl-kblayout` (через временный файл и `rename`, чтобы не прочитать недописанный файл), берёт PID из `$XDG_RUNTIME_DIR/dwl-status.pid` и шлёт ему `SIGUSR1`, если `/proc/<pid>/comm` — `dwl-status`. При старте dwl сразу пишет первую раскладку.
 - `dwl-status` по сигналу перерисовывает строку, функция `kblayout` читает файл.
+- **Num Lock** включён сразу после входа (и на клавиатуре, подключённой позже): `numlock = 1` в `config.h`, `patches/numlock-local.patch`. Выключить по умолчанию — `numlock = 0`. В консолях и на экране входа tuigreet его включает системный `numlock-tty.service`, см. [`hosts/system`](../../hosts/system/README.md#num-lock-в-консолях).
 
 ```
 Win+Space → xkb меняет группу → dwl: kblayout()
@@ -380,7 +381,7 @@ wlr-randr --output HDMI-A-2 --pos 1920,0 --mode 2560x1440@144.001999Hz --scale 1
 
 Клавиши: `Win+,` / `Win+.` — фокус на монитор, `Win+Shift+,` / `Win+Shift+.` — перенести окно. У каждого монитора свои теги, лейаут и дерево btrtile.
 
-Часть разъёмов ноутбука подключена к NVIDIA, а в загрузке `intel-only` она отключена — см. [`modules/hardware`](../../modules/hardware/README.md#внешний-монитор-и-видеокарта).
+Часть разъёмов ноутбука подключена к NVIDIA — см. [`modules/hardware`](../../modules/hardware/README.md#внешний-монитор-и-видеокарта).
 
 ## Блокировка экрана
 
@@ -441,18 +442,22 @@ less ~/.local/state/dwl.log.old
 
 ### Тест без выхода из сессии
 
-Вложенный dwl запускается окном внутри текущего. Внешний dwl перехватывает все свои `Win`-привязки, поэтому тестовую сборку собирают с `MODKEY` = `Alt` (замена `WLR_MODIFIER_LOGO` → `WLR_MODIFIER_ALT` в копии `config.h`). Собирается из текущего содержимого рабочей копии с теми же патчами, что в `default.nix` (если меняли список патчей — поправить и здесь):
+Вложенный dwl запускается окном внутри текущего. Внешний dwl перехватывает все свои `Win`-привязки, поэтому тестовую сборку собирают с `MODKEY` = `Alt` (замена `WLR_MODIFIER_LOGO` → `WLR_MODIFIER_ALT` в копии `config.h`, той же `replaceStrings`, что подставляет цвета из `theme/everforest.nix`). Собирается из текущего содержимого рабочей копии с теми же патчами, что в `default.nix` (если меняли список патчей — поправить и здесь):
 
 ```bash
 nix build --impure -o /tmp/dwl-nested --expr '
 let
   repo = /etc/nixos;
   pkgs = (builtins.getFlake (toString repo)).nixosConfigurations.gigabyte-nixos.pkgs;
+  theme = import (repo + "/theme/everforest.nix");
   patches = map (p: repo + "/home/dwl/patches/${p}")
-    [ "gaps.patch" "keys-latin.patch" "btrtile.patch" "btrtile-local.patch" "kblayout-local.patch" ];
+    [ "gaps.patch" "keys-latin.patch" "btrtile.patch" "btrtile-local.patch" "kblayout-local.patch" "numlock-local.patch" ];
 in
 (pkgs.dwl.override {
-  configH = pkgs.runCommand "config.h" { } "sed s/WLR_MODIFIER_LOGO/WLR_MODIFIER_ALT/ ${repo + "/home/dwl/config.h"} > $out";
+  configH = pkgs.writeText "config.h" (builtins.replaceStrings
+    (map (k: "@${k}@") (builtins.attrNames theme) ++ [ "WLR_MODIFIER_LOGO" ])
+    (builtins.attrValues theme ++ [ "WLR_MODIFIER_ALT" ])
+    (builtins.readFile (repo + "/home/dwl/config.h")));
 }).overrideAttrs (old: { patches = (old.patches or [ ]) ++ patches; })'
 
 /tmp/dwl-nested/bin/dwl -s 'ghostty --gtk-single-instance=false'
@@ -462,7 +467,7 @@ in
 
 ## Частые проблемы
 
-**Ошибка компиляции в `config.h`.** `nixos-rebuild` сообщает, что не собралась `…-dwl-0.9.drv`, и показывает только хвост лога. Полный лог и строка с ошибкой (`config.h` копируется в сборку как есть, номера строк совпадают с файлом в репо):
+**Ошибка компиляции в `config.h`.** `nixos-rebuild` сообщает, что не собралась `…-dwl-0.9.drv`, и показывает только хвост лога. Полный лог и строка с ошибкой (в сборку попадает `config.h` с подставленными цветами, строк столько же, номера совпадают с файлом в репо):
 
 ```bash
 nix log /nix/store/<хеш>-dwl-0.9.drv | grep -n -A3 'config.h:[0-9]*'

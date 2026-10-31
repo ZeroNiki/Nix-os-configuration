@@ -1,6 +1,6 @@
 # Системная конфигурация хоста `gigabyte-nixos`
 
-`configuration.nix` — основная системная часть (загрузчик, ядро, Nix и nh, сеть, звук, Bluetooth, DDC/CI, контейнеры и виртуализация, Steam, шрифты, пользователь, тестовая VM), `hardware-configuration.nix` — диски, файловые системы и модули initrd. Графика NVIDIA вынесена в [`modules/hardware`](../../modules/hardware/README.md), рабочий стол — в [`modules/desktop`](../../modules/desktop/README.md).
+`configuration.nix` — основная системная часть (загрузчик, ядро, Nix и nh, сеть, звук, Bluetooth, DDC/CI, редактор, контейнеры и виртуализация, Steam, шрифты, пользователь, `/tmp`, scrub и снимки btrfs, тестовая VM), `hardware-configuration.nix` — диски, файловые системы и модули initrd. Графика NVIDIA вынесена в [`modules/hardware`](../../modules/hardware/README.md), рабочий стол — в [`modules/desktop`](../../modules/desktop/README.md).
 
 Сборка, откат и переустановка — в [`Usage.md`](../../Usage.md), здесь только что и почему настроено.
 
@@ -13,14 +13,13 @@
 | `boot.loader.systemd-boot.enable` | `true` | systemd-boot, по пункту на каждое поколение |
 | `boot.loader.efi.efiSysMountPoint` | `"/boot/efi"` | ESP смонтирован в `/boot/efi`, а не в `/boot` по умолчанию NixOS. Без этой опции `bootctl` ищет FAT в `/boot`, находит там btrfs и установка загрузчика падает |
 | `boot.loader.systemd-boot.configurationLimit` | `10` | ESP — 1 ГиБ, поэтому ядра и initrd копируются максимум для 10 поколений |
-| `boot.kernelPackages` | `pkgs.linuxPackages_zen` | ядро zen, как было на Arch |
+| `boot.kernelPackages` | `pkgs.linuxPackages_zen` | ядро zen |
 | `hardware.cpu.intel.updateMicrocode` | `true` | микрокод Intel |
 | `nixpkgs.config.allowUnfree` | `true` | нужно для драйвера NVIDIA (и Steam) |
 | `nix.settings.experimental-features` | `nix-command flakes` | без этого `nix flake …` после установки не работает |
-| `nix.settings.auto-optimise-store` | `true` | одинаковые файлы в `/nix/store` заменяются жёсткими ссылками прямо при добавлении |
+| `nix.optimise.automatic` | `true` | раз в сутки (`nix-optimise.timer`) одинаковые файлы в `/nix/store` заменяются жёсткими ссылками. Результат тот же, что у `auto-optimise-store`, но сборки не ждут проверки каждого добавленного пути |
+| `nix.settings.min-free` / `max-free` | 5 ГиБ / 20 ГиБ | если во время сборки на диске меньше 5 ГиБ, Nix собирает мусор, пока свободно не станет 20 ГиБ. Удаляется только то, на что нет корней: поколения, оставленные `nh clean`, не трогаются |
 | `nix.channel.enable` | `false` | каналов нет, всё из flake. `nix-shell -p` и `nix shell nixpkgs#…` работают и берут nixpkgs этого flake: `lib.nixosSystem` выставляет `nixpkgs.flake.source`, из него NixOS заполняет `NIX_PATH` и реестр |
-
-В меню systemd-boot у каждого поколения есть ещё пункт `intel-only` — см. [`modules/hardware`](../../modules/hardware/README.md#пункт-загрузки-intel-only).
 
 ### nh и сборка мусора
 
@@ -44,12 +43,16 @@
   nmcli device wifi connect "<SSID>" password "<пароль>"
   ```
 
-- `time.timeZone = "Asia/Tashkent"`, `i18n.defaultLocale = "en_US.UTF-8"`, дополнительно сгенерирована `ru_RU.UTF-8` (для русских man-страниц, `MANOPT` в `home/home.nix`).
+- `time.timeZone = "Asia/Tashkent"`, `i18n.defaultLocale = "en_US.UTF-8"`, дополнительно сгенерирована `ru_RU.UTF-8` (для русских man-страниц, `MANOPT` в `home/shell.nix`).
 - Печать выключена: `services.printing.enable = false`.
 
 ### Swap
 
 `zramSwap.enable = true` — сжатый swap в памяти, раздела подкачки нет (`swapDevices = [ ]` в `hardware-configuration.nix`).
+
+### `/tmp` в памяти
+
+`boot.tmp.useTmpfs = true` — `/tmp` монтируется как tmpfs (до половины RAM) и пуст после каждой загрузки. Сборки Nix туда не попадают: начиная с Nix 2.30 демон собирает в `/nix/var/nix/builds` (настройка `build-dir`), то есть на диске, поэтому большая сборка память не съест и `nix.settings.build-dir` задавать не нужно.
 
 ### Звук
 
@@ -62,7 +65,7 @@ wpctl set-volume @DEFAULT_AUDIO_SINK@ 50%
 
 ### Bluetooth
 
-`hardware.bluetooth.enable`, `powerOnBoot = true` (адаптер включается при загрузке), `services.blueman.enable` — GUI `blueman-manager`, он же открывается кликом по блоку Bluetooth на панели. Из терминала — `bluetoothctl`.
+`hardware.bluetooth.enable`, `powerOnBoot = false`: после загрузки адаптер выключен (меньше расход батареи), включается из [`bluetui`](https://github.com/pythops/bluetui) — TUI вроде `nmtui`, пакет в `home/apps.nix`. Он же открывается в ghostty кликом по блоку Bluetooth на панели (серый значок, пока адаптер выключен). Blueman (GUI на Python + GTK, ~0,7 ГиБ) убран. Из терминала ещё есть `bluetoothctl`.
 
 ### Яркость внешнего монитора (DDC/CI)
 
@@ -78,14 +81,19 @@ ddcutil getvcp 10
 - `programs.zsh.enable`, `users.defaultUserShell = pkgs.zsh`; настройка zsh — в [`home`](../../home/README.md#zsh).
 - `users.users.nellaror` (имя приходит из `flake.nix` через `specialArgs.username`): обычный пользователь, группы `wheel`, `networkmanager`, `docker`, `libvirtd`, `video` (подсветка ноутбука через `brightnessctl`), `input`, `i2c` (DDC/CI, см. выше), shell — zsh.
 - **Пароль в конфиге не задан** намеренно, чтобы он не попал в git. После установки его ставят через `passwd` (см. [`Usage.md`](../../Usage.md#переустановка)). Пароль, заданный `passwd`, сохраняется между пересборками.
-- Системные пакеты — только `git` и `vim`, всё пользовательское — в Home Manager.
+- Системные пакеты — только `git`, всё пользовательское — в Home Manager.
 - `security.polkit.enable` (агент аутентификации — в [`modules/desktop`](../../modules/desktop/README.md#polkit-агент)).
+
+### Редактор: только neovim
+
+- `programs.nano.enable = false` — nano, который NixOS ставит по умолчанию, убран.
+- `programs.neovim` с `defaultEditor = true` (`EDITOR=nvim`), `viAlias` и `vimAlias`: `vi` и `vim` — это тот же nvim, с конфигом из `~/.dotfiles` (ссылка — в [`home/dev.nix`](../../home/README.md#neovim-из-dotfiles)), а не vim с настройками по умолчанию. Отдельного vim в системе нет.
 
 ### Docker и libvirt
 
 - `virtualisation.docker.enable` — Docker, пользователь в группе `docker` (команды без sudo). `enableOnBoot = false`: `dockerd` не стартует при загрузке, его поднимает `docker.socket` при первом вызове `docker` (первая команда после загрузки — на секунду дольше). Контейнеры с `--restart=always` поэтому тоже поднимаются только после первого обращения к docker, а не при загрузке. Podman специально не включён рядом с Docker, чтобы не держать два рантайма; при желании блок заменяется на `virtualisation.podman`.
 - `virtualisation.libvirtd.enable` + `programs.virt-manager.enable` — QEMU/KVM через libvirt, GUI `virt-manager`, пользователь в группе `libvirtd`. VirtualBox не ставится: libvirt закрывает ту же задачу без второго гипервизора.
-- Vagrant (пакет — в `home/home.nix`) работает через libvirt: пакет `vagrant` в nixpkgs уже собран с плагином `vagrant-libvirt` (`vagrant plugin list` → `vagrant-libvirt (system)`), а `VAGRANT_DEFAULT_PROVIDER=libvirt` в `home.sessionVariables` делает его провайдером по умолчанию.
+- Vagrant (пакет — в `home/dev.nix`) работает через libvirt: пакет `vagrant` в nixpkgs уже собран с плагином `vagrant-libvirt` (`vagrant plugin list` → `vagrant-libvirt (system)`), а `VAGRANT_DEFAULT_PROVIDER=libvirt` в `home.sessionVariables` (там же) делает его провайдером по умолчанию.
 
 ```bash
 docker run --rm hello-world
@@ -108,7 +116,15 @@ vagrant init generic/debian12 && vagrant up   # VM в libvirt
 - `fonts.fontconfig.defaultFonts.monospace = [ "Terminess Nerd Font" ]` — его получают программы, которые просят просто `monospace` (моноширинный текст в Firefox, GTK). Обычный (`sans-serif`) и с засечками (`serif`) не менялись.
 - TTY и tuigreet на нём: `console.font = "ter-v24n"` из `pkgs.terminus_font` (PSF-версия Terminus, 12×24 px: 160×50 символов на экране ноутбука), `console.earlySetup = true` — шрифт ставится ещё в initrd.
 
-Имя шрифта задано один раз в [`home/theme/font.nix`](../../home/theme/README.md#шрифт) и импортируется отсюда и из модулей Home Manager.
+Имя шрифта задано один раз в [`theme/font.nix`](../../theme/README.md#шрифт); `flake.nix` передаёт его сюда и в модули Home Manager аргументом `font`.
+
+### Num Lock в консолях
+
+`systemd.services.numlock-tty` — при загрузке, до `greetd` и `getty`, выполняет `setleds -D +num` на `/dev/tty1` … `/dev/tty6`, так что Num Lock включён и в tuigreet (он на `tty1`), и в консолях `Ctrl+Alt+F2`… `-D` делает это значением по умолчанию для консоли, поэтому оно не слетает, когда greetd или getty сбрасывают её. В самой сессии dwl Num Lock включает dwl (см. [`home/dwl`](../../home/dwl/README.md#раскладка-enru)): после входа клавиатурой управляет он, а не консоль.
+
+```bash
+systemctl status numlock-tty
+```
 
 ### Тестовая VM (`virtualisation.vmVariant`)
 
@@ -152,7 +168,7 @@ KVM используется сам, если доступен (QEMU по умо
 | `/.snapshots` | `/dev/disk/by-label/nixos` | `@snapshots` | `compress=zstd`, `noatime` |
 | `/boot/efi` | `/dev/disk/by-label/EFI` | — (vfat) | `fmask=0077`, `dmask=0077` |
 
-`/.snapshots` — только сабвольюм под снимки: инструмент снапшотов (snapper, btrbk) в конфиге не настроен.
+`/.snapshots` — сабвольюм под снимки `/home`, их делает btrbk (ниже).
 
 **Почему по меткам, а не по UUID.** UUID появляется только при форматировании, поэтому описание по UUID пришлось бы после каждой разметки вписывать в репо заново. Метки задаются командами `mkfs` из [`Usage.md`](../../Usage.md#переустановка) (`mkfs.fat -F32 -n EFI`, `mkfs.btrfs -L nixos`), так что этот файл верен сразу после форматирования, и тот же конфиг подходит для переустановки без правок.
 
@@ -165,6 +181,28 @@ mount -o subvol=@nix,compress=zstd,noatime /dev/disk/by-label/nixos /mnt/nix
 mount -o subvol=@snapshots,compress=zstd,noatime /dev/disk/by-label/nixos /mnt/.snapshots
 mount /dev/disk/by-label/EFI /mnt/boot/efi
 nixos-enter --root /mnt
+```
+
+### Scrub
+
+`services.btrfs.autoScrub.enable = true` — раз в месяц (`btrfs-scrub-*.timer`) `btrfs scrub` перечитывает все данные и метаданные и сверяет контрольные суммы, так тихая порча на диске находится до того, как понадобится файл. Опция сама берёт по одной точке монтирования на устройство, поэтому диск проверяется один раз, а не для каждого сабвольюма.
+
+```bash
+systemctl list-timers 'btrfs-scrub*'
+sudo btrfs scrub status /
+```
+
+### Снимки `/home` (btrbk)
+
+`services.btrbk.instances.home`: каждый час (`btrbk-home.timer`) снимок сабвольюма `@home` (смонтирован в `/home`) только для чтения кладётся в `/.snapshots` (`@snapshots`) под именем `home.YYYYMMDDThhmm` (`timestamp_format = "long"`). Хранятся все снимки за последние 2 дня (`snapshot_preserve_min = "2d"`), дальше — по одному в день до 14 дней (`snapshot_preserve = "14d"`), остальные btrbk удаляет сам. Систему снимки не покрывают: её откатывают поколения NixOS.
+
+Снимок btrfs ничего не копирует, место занимают только изменения после него. Но и удалённый из `/home` файл (например, игра Steam в `~/.local/share/Steam`) освобождает место только после того, как уйдёт последний снимок с ним, то есть через 14 дней. Если место нужно сразу — удалить старые снимки руками (`sudo btrfs subvolume delete /.snapshots/home.…`).
+
+```bash
+ls /.snapshots
+cp -a /.snapshots/home.20261031T1200/nellaror/notes.md ~/   # вернуть файл
+sudo btrbk -c /etc/btrbk/home.conf list snapshots
+sudo btrbk -c /etc/btrbk/home.conf run -n                    # что сделал бы прогон, без изменений
 ```
 
 ### Прочее
